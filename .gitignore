@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+*.py[cod]
+db.sqlite3
+.env
+
+# Local secrets, databases, and uploaded originals
+.env.*
+!.env.example
+*.sqlite3
+*.sqlite3-*
+media/
+.DS_Store
+node_modules/
+.next/
