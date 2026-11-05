@@ -1,2 +1,4 @@
 Django>=5.2,<5.3
 djangorestframework>=3.16,<3.17
+django-two-factor-auth[phonenumberslite]==1.18.1
+Pillow>=13.0,<14

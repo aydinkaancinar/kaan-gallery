@@ -1,11 +1,22 @@
 from rest_framework import serializers
-from .models import Item, Artist
+from .models import Item, Artist, ArtworkImage
+from django.urls import reverse
 
 class ArtistSerializer(serializers.ModelSerializer):
     class Meta:
         model = Artist
         fields = '__all__'
-        
+
+class ArtworkImageSerializer(serializers.ModelSerializer):
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ArtworkImage
+        fields = ["id", "image", "alt_text", "position"]
+
+    def get_image(self, obj):
+        return reverse("artwork-image", kwargs={"image_id": obj.pk})
+
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
@@ -13,6 +24,11 @@ class ItemSerializer(serializers.ModelSerializer):
 
     artist_details = ArtistSerializer(
         source="artist",
+        read_only=True,
+    )
+
+    images = ArtworkImageSerializer(
+        many=True,
         read_only=True,
     )
 
@@ -87,5 +103,3 @@ class ItemFilterSerializer(serializers.Serializer):
                     "min_price must not exceed max_price."
                 )
         return attrs
-
-

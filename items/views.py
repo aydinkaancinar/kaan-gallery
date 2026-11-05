@@ -2,19 +2,27 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from .models import Item, Artist
+from .models import Item, Artist, ArtworkImage
 from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer
 from django.db.models import Q
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.decorators import permission_classes
+from .permissions import IsAdminOrReadOnly
+from django.http import FileResponse, Http404
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_GET
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAdminOrReadOnly])
 def getData(request):
     if request.method == "GET":
         filters = ItemFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
 
-        items = Item.objects.select_related("artist").prefetch_related("tags")
+        items = Item.objects.select_related("artist").prefetch_related("tags", "images")
 
+        if not request.user.is_staff:
+            items = items.filter(status=Item.Status.PUBLISHED)
         minimum = filters.validated_data.get("min_price")
         maximum = filters.validated_data.get("max_price")
         category = filters.validated_data.get("category")
@@ -88,8 +96,12 @@ def getData(request):
 
 
 @api_view(["DELETE","PATCH","GET"])
+@permission_classes([IsAdminOrReadOnly])
 def operateItem(request, item_id):
-    item = get_object_or_404(Item, pk=item_id)
+    items = Item.objects.all()
+    if not request.user.is_staff:
+        items = items.filter(status=Item.Status.PUBLISHED)
+    item = get_object_or_404(items, pk=item_id)
     if request.method == "DELETE":
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -107,6 +119,7 @@ def operateItem(request, item_id):
         return Response(status=status.HTTP_200_OK)
 
 @api_view(["GET", "POST"])
+@permission_classes([IsAdminOrReadOnly])
 def artistAPI(request):
     if request.method == "GET":
         artists = Artist.objects.all()
@@ -120,6 +133,7 @@ def artistAPI(request):
         return Response(serializer.data, status=201)
 
 @api_view(["DELETE","PATCH","GET"])
+@permission_classes([IsAdminOrReadOnly])
 def operateArtist(request, item_id):
     artist = get_object_or_404(Artist, pk=item_id)
     if request.method == "DELETE":
@@ -137,3 +151,46 @@ def operateArtist(request, item_id):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(status=status.HTTP_200_OK)
+
+@api_view(["GET"])
+@permission_classes([IsAdminOrReadOnly])
+def artwork_detail(request, slug):
+    items = Item.objects.select_related("artist").prefetch_related("tags")
+
+    if not request.user.is_staff:
+        items = items.filter(status=Item.Status.PUBLISHED)
+
+    item = get_object_or_404(items, slug=slug)
+    serializer = ItemSerializer(item)
+
+    return Response(serializer.data)
+
+@never_cache
+@require_GET
+def artwork_image(request, image_id):
+    images = ArtworkImage.objects.select_related("item")
+    user = request.user
+
+    verified_staff = (
+        user.is_authenticated
+        and user.is_active
+        and user.is_staff
+        and user.is_verified()
+    )
+
+    if not verified_staff:
+        images = images.filter(item__status=Item.Status.PUBLISHED)
+
+    artwork_image = get_object_or_404(images, pk=image_id)
+
+    if not artwork_image.image:
+        raise Http404("Image not found.")
+
+    try:
+        file = artwork_image.image.open("rb")
+    except FileNotFoundError:
+        raise Http404("Image not found.")
+
+    response = FileResponse(file)
+    response["X-Content-Type-Options"] = "nosniff"
+    return response

@@ -59,7 +59,7 @@ curl -X POST http://127.0.0.1:8000/items/ \
 - `items/serializers.py`: Item fields and price validation.
 - `items/views.py`: Your list/create and detail/update/delete functions.
 - `config/urls.py`: URL mappings.
-- `items/tests.py`: Place API tests here.
+- `items/tests/`: Tests grouped by permissions, publication, filters, and session security; shared fixtures live in `helpers.py`.
 - `items/migrations/`: Database schema history.
 - `db.sqlite3`: Local database, excluded from version control.
 
@@ -76,3 +76,15 @@ Historical migrations mention the removed Task model; a subsequent migration del
 
 After changing a model, run `makemigrations` followed by `migrate`.
 This project uses local development settings and anonymous API access.
+
+Run a focused test module, for example:
+
+```bash
+./.venv/bin/python manage.py test items.tests.test_session_security
+```
+
+## Security implementation
+
+See [Security implementation and learning notes](docs/SECURITY_IMPLEMENTATION.md) for source references, test evidence, current limitations, and planned controls. This project is not yet production-ready.
+
+[Open the security notes as a standalone HTML page](docs/SECURITY_IMPLEMENTATION.html). Regenerate it after Markdown changes with `python scripts/build_security_page.py`.
