@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
 from rest_framework.test import APITestCase
 from ..models import Item
-from .helpers import create_item
+from .helpers import create_item, login_with_verified_session
 from django.urls import reverse
 
 User = get_user_model()
@@ -52,7 +52,7 @@ class ItemPublicationTests(APITestCase):
 
     def test_staff_list_includes_drafts_and_published_items(self):
         staff = User.objects.create_user(username="gallery-admin", is_staff=True)
-        self.client.force_authenticate(user=staff)
+        login_with_verified_session(self.client, staff)
 
         response = self.client.get("/items/")
 
@@ -103,7 +103,7 @@ class ItemPublicationTests(APITestCase):
             username="gallery-staff",
             is_staff=True,
         )
-        self.client.force_authenticate(user=staff)
+        login_with_verified_session(self.client, staff)
 
         response = self.client.get(f"/items/{self.draft.id}/")
 
@@ -121,6 +121,34 @@ class ItemPublicationTests(APITestCase):
         self.assertEqual(response.data["id"], self.published.id)
 
     def test_public_cannot_retrieve_draft_by_slug(self):
+        response = self.client.get(
+            reverse(
+                "artwork-detail",
+                kwargs={"slug": self.draft.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_staff_without_mfa_cannot_retrieve_draft(self):
+        staff = User.objects.create_user(
+            username="unverified-staff",
+            is_staff=True,
+        )
+
+        self.client.force_login(staff)
+
+        response = self.client.get(f"/items/{self.draft.pk}/")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_staff_without_mfa_cannot_retrieve_draft_by_slug(self):
+        staff = User.objects.create_user(
+            username="unverified-slug-staff",
+            is_staff=True,
+        )
+        self.client.force_login(staff)
+
         response = self.client.get(
             reverse(
                 "artwork-detail",

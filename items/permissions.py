@@ -5,10 +5,12 @@ class IsAdminOrReadOnly(BasePermission):
         if request.method in SAFE_METHODS:
             return True
 
-        return bool(
-            request.user
-            and request.user.is_authenticated
-            and request.user.is_active
-            and request.user.is_staff
-            and request.user.is_verified()
-        )
+        return is_verified_staff(request.user)
+
+def is_verified_staff(user):
+    return bool(
+        user.is_authenticated
+        and user.is_active
+        and user.is_staff
+        and getattr(user, "is_verified", lambda: False)()
+    )

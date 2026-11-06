@@ -88,3 +88,7 @@ Run a focused test module, for example:
 See [Security implementation and learning notes](docs/SECURITY_IMPLEMENTATION.md) for source references, test evidence, current limitations, and planned controls. This project is not yet production-ready.
 
 [Open the security notes as a standalone HTML page](docs/SECURITY_IMPLEMENTATION.html). Regenerate it after Markdown changes with `python scripts/build_security_page.py`.
+
+## Gallery ordering
+
+The gallery defaults to optional admin-set positions, followed by physical creation month/year newest first. See [curated ordering](docs/GALLERY_ORDERING.md) for null handling, tie-breakers, and admin instructions.

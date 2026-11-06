@@ -4,13 +4,15 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from .models import Item, Artist, ArtworkImage
 from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer
-from django.db.models import Q
+from django.db.models import F, Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import permission_classes
 from .permissions import IsAdminOrReadOnly
 from django.http import FileResponse, Http404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
+from .permissions import IsAdminOrReadOnly, is_verified_staff
+import re
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAdminOrReadOnly])
@@ -21,7 +23,7 @@ def getData(request):
 
         items = Item.objects.select_related("artist").prefetch_related("tags", "images")
 
-        if not request.user.is_staff:
+        if not is_verified_staff(request.user):
             items = items.filter(status=Item.Status.PUBLISHED)
         minimum = filters.validated_data.get("min_price")
         maximum = filters.validated_data.get("max_price")
@@ -31,6 +33,32 @@ def getData(request):
         search = filters.validated_data.get("search")
         artist = filters.validated_data.get("artist")
         tag = filters.validated_data.get("tag")
+        creation_year = filters.validated_data.get("creation_year")
+        creation_month = filters.validated_data.get("creation_month")
+        created_from = filters.validated_data.get("created_from")
+        created_to = filters.validated_data.get("created_to")
+
+        if creation_year is not None:
+            items = items.filter(creation_year=creation_year)
+
+        if creation_month is not None:
+            items = items.filter(creation_month=creation_month)
+
+        if created_from is not None:
+            year, month = map(int, created_from.split("-"))
+
+            items = items.filter(
+                Q(creation_year__gt=year)
+                | Q(creation_year=year, creation_month__gte=month)
+            )
+
+        if created_to is not None:
+            year, month = map(int, created_to.split("-"))
+
+            items = items.filter(
+                Q(creation_year__lt=year)
+                | Q(creation_year=year, creation_month__lte=month)
+            )
 
         if minimum is not None:
             items = items.filter(price__gte=minimum)
@@ -64,14 +92,42 @@ def getData(request):
                 items = items.order_by("category", "name", "price", "id")
             elif order_by == Item.Fields.CREATED:
                 items = items.order_by("created", "category", "name", "price", "id")
+            elif order_by == Item.Fields.CREATION_DATE_ASCENDING:
+                items = items.order_by(
+                    F("creation_year").asc(nulls_last=True),
+                    F("creation_month").asc(nulls_last=True),
+                    "name",
+                    "id",
+                )
+            elif order_by == Item.Fields.CREATION_DATE_DESCENDING:
+                items = items.order_by(
+                    F("creation_year").desc(nulls_last=True),
+                    F("creation_month").desc(nulls_last=True),
+                    "name",
+                    "id",
+                )
         else:
-            items = items.order_by("id")
+            items = items.order_by(*Item._meta.ordering)
 
         if search is not None:
-            items = items.filter(
-                Q(name__icontains=search.strip().lower())
-                | Q(description__icontains=search.strip().lower())
-            )
+            term = search.strip()
+
+            if re.fullmatch(r"[0-9]{4}", term):
+                items = items.filter(creation_year=int(term))
+
+            elif re.fullmatch(r"[0-9]{4}-[0-9]{2}", term):
+                year, month = map(int, term.split("-"))
+
+                items = items.filter(
+                    creation_year=year,
+                    creation_month=month,
+                )
+
+            else:
+                items = items.filter(
+                    Q(name__icontains=term)
+                    | Q(description__icontains=term)
+                )
                         
         paginator = PageNumberPagination()
         paginator.page_size = 5
@@ -99,7 +155,7 @@ def getData(request):
 @permission_classes([IsAdminOrReadOnly])
 def operateItem(request, item_id):
     items = Item.objects.all()
-    if not request.user.is_staff:
+    if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
     item = get_object_or_404(items, pk=item_id)
     if request.method == "DELETE":
@@ -157,7 +213,7 @@ def operateArtist(request, item_id):
 def artwork_detail(request, slug):
     items = Item.objects.select_related("artist").prefetch_related("tags")
 
-    if not request.user.is_staff:
+    if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
 
     item = get_object_or_404(items, slug=slug)
@@ -169,16 +225,8 @@ def artwork_detail(request, slug):
 @require_GET
 def artwork_image(request, image_id):
     images = ArtworkImage.objects.select_related("item")
-    user = request.user
 
-    verified_staff = (
-        user.is_authenticated
-        and user.is_active
-        and user.is_staff
-        and user.is_verified()
-    )
-
-    if not verified_staff:
+    if not is_verified_staff(request.user):
         images = images.filter(item__status=Item.Status.PUBLISHED)
 
     artwork_image = get_object_or_404(images, pk=image_id)

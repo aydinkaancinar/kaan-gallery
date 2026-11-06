@@ -1,6 +1,6 @@
 # Security implementation and learning notes
 
-Reviewed: 2026-11-05. This is a code-based snapshot of a local development application, not a security certification or production-readiness claim. The full Django suite passed 49 tests during this review. Passing tests cover only the scenarios asserted; they do not prove absence of vulnerabilities.
+Reviewed: 2026-11-06. This is a code-based snapshot of a local development application, not a security certification or production-readiness claim. The full Django suite passed 100 tests during this review. Passing tests cover only the scenarios asserted; they do not prove absence of vulnerabilities.
 
 This document contains source references and design explanations, not credentials or private deployment details. It is suitable for review alongside the public repository. Nothing was deployed or pushed when this document was created.
 
@@ -11,7 +11,7 @@ Protected assets include admin accounts/sessions, unpublished artwork and images
 | Operation | Intended policy | Current implementation |
 | --- | --- | --- |
 | Published artwork reads | Public | Implemented in item list and ID/slug detail querysets |
-| Draft artwork metadata | Staff preview; align with MFA-only private administration | Current checks require staff, not OTP verification |
+| Draft artwork metadata | Active MFA-verified staff only | Shared verified-staff helper scopes list and ID/slug detail querysets |
 | API create/update/delete | Authenticated MFA-verified staff | Explicit per-view permission on item and artist CRUD |
 | Django admin | Active, MFA-verified staff; model permissions also apply | OTP-required admin site configured |
 | Published image bytes | Public | Authorization-aware image endpoint implemented |
@@ -86,9 +86,9 @@ CSRF tokens have no independent short server-enforced expiry timer. Cookie reten
 
 Sources: [Item model](../items/models.py), `getData`, `operateItem`, and `artwork_detail` in [views](../items/views.py), [publication tests](../items/tests/test_publication.py).
 
-Items default to `draft`. Non-staff list and detail querysets are restricted to `published` before filtering/pagination or `get_object_or_404()`. This prevents public result counts from revealing drafts and returns 404 for draft detail lookups. Slugs improve URLs; they are identifiers, not secrets or authorization controls.
+Items default to `draft`. List and detail querysets for callers who are not MFA-verified staff are restricted to `published` before filtering/pagination or `get_object_or_404()`. This prevents public result counts from revealing drafts and returns 404 for draft detail lookups. Slugs improve URLs; they are identifiers, not secrets or authorization controls.
 
-Current staff metadata preview does not require `is_verified()`. This differs from draft-image delivery and must be reviewed before claiming all draft resources require MFA. Public artist endpoints expose artist records independently of item publication; decide what artist data is intentionally public.
+Draft metadata and image views now use the same `is_verified_staff()` helper. It requires authenticated, active staff and OTP verification; a missing verification method returns False. Publication tests explicitly reject password-only staff at both ID and slug detail URLs and allow verified-staff ID preview and list access. Public artist endpoints expose artist records independently of item publication; decide what artist data is intentionally public.
 
 Tests cover anonymous ID/slug draft hiding, published access, non-staff list visibility, staff preview, search, and pagination counts. Full related-response and non-staff detail coverage is still to be completed.
 
@@ -102,9 +102,11 @@ Uploads are currently managed through the OTP-protected Django admin inline. Nes
 
 Validators are attached to the model field and run through admin model forms. Direct `save()` does not automatically run model validation. Future upload APIs, imports, or background jobs must validate deliberately.
 
-Existing tests cover size rejection, exact size-limit acceptance, and acceptance of a genuine PNG. They do not yet prove rejection of disguised text, unsupported formats, corrupt files, decompression bombs, or oversized pixel dimensions. Unit size tests simulate the reported size; they are not ingress/body-limit tests.
+Validation limits images to 25 million pixels before structural verification. Pillow decompression-bomb warnings are locally converted to exceptions; both warnings and errors become ValidationError with a safe message. The file position is restored in finally.
 
-Before deployment: enforce image dimension/resource limits, handle Pillow decompression-bomb warnings/errors, add negative format tests, set request/upload limits at ingress, consider image re-encoding and metadata removal, and keep Pillow patched. Structural verification does not guarantee a file is harmless in every downstream context.
+Tests cover the 10 MiB size boundary, genuine PNG acceptance, disguised-text rejection, the 25-million-pixel boundary, and decompression-bomb warning/error handling. Dimension and bomb tests mock Pillow rather than allocate huge files; they verify application behavior, not the correctness of Pillow internals. Unit size tests simulate the reported size; they are not ingress/body-limit tests. Unsupported real image formats, corrupt image variants, and admin upload integration still need additional coverage.
+
+Before deployment: add remaining negative-format/admin integration coverage, set request/upload limits at ingress, review multi-frame/resource handling, consider image re-encoding and metadata removal, and keep Pillow patched. Structural verification does not guarantee a file is harmless in every downstream context.
 
 ## 7. Authorization-aware image delivery
 
@@ -170,8 +172,8 @@ Immediate priorities:
 
 1. Expand image-access role coverage and define cache headers for denied/missing-image responses.
 2. Test image publication transitions, role restrictions, and cache headers.
-3. Complete upload negative/dimension tests and resource limits.
-4. Reconcile draft metadata access with MFA policy and test the stricter global permission default.
+3. Complete remaining format/admin upload tests and ingress/resource limits; application size/pixel/bomb handling is implemented.
+4. Expand regression coverage for password-only staff list visibility, verified-staff slug preview, inactive users, and the global permission default.
 5. Finish recovery, bypass, and rate-limiting work before release.
 6. Complete production settings, storage/Cloudflare origin design, dependency checks, and backup/incident procedures.
 

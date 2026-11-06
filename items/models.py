@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils.text import slugify
 from .validators import validate_image_size, validate_image_format
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 class Item(models.Model):
 
@@ -21,6 +22,8 @@ class Item(models.Model):
         PRICE = "price", "Price"
         CATEGORY = "category", "Category"
         CREATED = "created", "Created"
+        CREATION_DATE_ASCENDING = "creation_date", "Creation date: oldest first"
+        CREATION_DATE_DESCENDING = "-creation_date", "Creation date: newest first"
 
     name = models.CharField(max_length=200)
     price = models.DecimalField(max_digits=10, decimal_places=2)
@@ -54,6 +57,32 @@ class Item(models.Model):
         blank=True,
         unique=True,
     )
+    creation_year = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1999), MaxValueValidator(2099)]
+    )
+    creation_month = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1), MaxValueValidator(12)]
+    )
+
+    display_order = models.PositiveIntegerField(
+        "Gallery position",
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        help_text="Lower numbers appear first. Leave blank to order by creation date.",
+    )
+
+    class Meta:
+        ordering = [
+            models.F("display_order").asc(nulls_last=True),
+            models.F("creation_year").desc(nulls_last=True),
+            models.F("creation_month").desc(nulls_last=True),
+            "id",
+        ]
 
     def save(self, *args, **kwargs):
         if not self.slug:

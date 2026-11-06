@@ -27,12 +27,12 @@ class ArtworkImageInline(admin.StackedInline):
 
 @admin.register(Item)
 class ItemAdmin(admin.ModelAdmin):
-    list_display = ["name", "id", "category", "artist", "price", "quantity", "status"]
+    list_display = ["name", "id", "display_order", "creation_year", "creation_month", "category", "artist", "price", "quantity", "status"]
     search_fields = ["name", "description", "artist__name", "tags__name"]
     list_filter = ["category", "status"]
     list_select_related = ["artist"]
     filter_horizontal = ["tags"]
-    list_editable = ["status"]
+    list_editable = ["status", "display_order"]
     inlines = [ArtworkImageInline]
 admin.site.register(Artist)
 admin.site.register(Tag)
