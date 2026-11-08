@@ -1,3 +1,4 @@
+from .helpers import login_as_verified_staff
 from django.contrib import admin
 from django.test import SimpleTestCase
 from rest_framework.test import APITestCase
@@ -84,7 +85,7 @@ class GalleryOrderingTests(APITestCase):
     def test_filters_and_pagination_preserve_curated_order_and_hide_drafts(self):
         ordinary = [
             self.artwork(name=f"Blue vase {month}", category="vase", creation_year=2025, creation_month=month)
-            for month in range(1, 7)
+            for month in range(1, 11)
         ]
         featured = self.artwork(name="Blue featured vase", category="vase", display_order=1, creation_year=2025, creation_month=1)
         self.artwork(name="Blue bowl", category="kitchenware", display_order=0, creation_year=2025, creation_month=2)
@@ -92,11 +93,12 @@ class GalleryOrderingTests(APITestCase):
         create_item(name="Blue secret vase", category="vase", display_order=0, creation_year=2025, creation_month=2)
 
         self.assertEqual(
-            self.all_ids(category="vase", search="blue", created_from="2025-01", created_to="2025-06"),
+            self.all_ids(category="vase", search="blue", created_from="2025-01", created_to="2025-10"),
             [featured.pk] + [item.pk for item in reversed(ordinary)],
         )
 
     def test_explicit_backend_sort_still_overrides_curated_default(self):
+        login_as_verified_staff(self.client)
         featured = self.artwork(name="Featured", display_order=0, price="100.00", creation_year=2024, creation_month=1)
         cheap = self.artwork(name="Cheap", price="10.00", creation_year=2025, creation_month=1)
 

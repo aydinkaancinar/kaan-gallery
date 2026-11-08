@@ -1,6 +1,6 @@
 # Kaan Gallery
 
-A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend is implemented; the Next.js frontend is planned around approved local light/dark mockups.
+A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend and Next.js frontend run locally, with a responsive gallery based on approved light/dark mockups.
 
 **Status: local development, not production-ready.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Production infrastructure and remaining security work are not deployed.
 
@@ -10,14 +10,18 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 - Draft/published workflow with restricted draft metadata and image access.
 - Categories, artist relationships, and many-to-many tags.
 - Name/description search, physical creation-date search, and combined filters.
-- Inclusive month/year ranges and paginated lists (five items per page).
+- Inclusive month/year ranges and paginated lists (nine items per page).
 - Optional admin-set gallery positions, followed by physical creation date newest first; stable ID tie-breakers.
 - Unique artwork slugs that remain stable when titles change.
 - Multiple images with alt text, display order, and automatically selected cover images.
 - Image delivery through a publication-aware endpoint rather than public storage URLs.
 - Upload size, actual-format, pixel-limit, and Pillow decompression-bomb validation.
 - Session authentication, authenticator-app MFA, CSRF enforcement, and staff authorization.
-- **100 passing tests** at the latest milestone, covering unit and API behavior.
+- Responsive light/dark gallery with real images, category/search/month filters, URL-based pagination, and reset controls.
+- Individual artwork pages with uncropped photos, image navigation, and a full-screen viewer.
+- Loading, error/retry, and not-found screens; adaptive sun favicon and branded sharing preview.
+- Public field allowlists hide prices, inventory quantities, and management metadata; price queries require verified staff.
+- **120 passing backend tests**, verified 2026-11-08; frontend lint and production build also pass.
 
 ## Architecture
 
@@ -26,12 +30,12 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 | Backend | Django 5.2 + Django REST Framework |
 | Local database | SQLite |
 | Local image storage | Files under ignored `media/`; delivered through Django access checks |
-| Frontend | Next.js + TypeScript, planned |
+| Frontend | Next.js 16 + React 19 + TypeScript, implemented locally |
 | Hosting | Vercel frontend, Render backend, Neon PostgreSQL; free tiers initially, planned |
 | Production media | Private object storage, provider to be selected |
 | Edge security | Cloudflare proxy/Access with direct-origin bypass protection, planned |
 
-The first release is a gallery with private administration. Sales are deferred. The intended frontend includes light/dark themes, individual artwork pages, search, categories, a completion-date range slider, and MM/YY dates beside titles. Visitor sorting controls are not planned initially; explicit backend sorting remains available.
+The first release is a gallery with private administration. Sales are deferred. The frontend includes light/dark themes, individual artwork pages, search, categories, a completion-date range slider, and MM/YY dates beside titles. Visitor sorting controls are not planned initially; explicit backend sorting remains available.
 
 ## Local setup
 
@@ -56,6 +60,36 @@ For an existing installation, run migrations and start the server. The database 
 
 Admin access requires MFA verification. Keep authenticator secrets and recovery material private. Test fixtures use simulated sessions in selected tests; those helpers are not a production login mechanism.
 
+## Frontend setup
+
+Use Node.js 24 (verified with 24.22.2). Keep Django running on
+`http://127.0.0.1:8000` and start Next.js in a second terminal:
+
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). The frontend currently uses
+the local Django address directly; deployment-specific API configuration remains
+planned. `SITE_URL` controls absolute sharing URLs and defaults to localhost;
+set it to the real public frontend origin before deployment.
+
+```bash
+npm run lint
+npm run build
+npm start
+```
+
+The production build passes, but that is not a production security or hosting
+approval. See [frontend notes](frontend/README.md) for current limitations.
+
+Dependency audit on 2026-11-08: `npm audit --omit=dev` reports zero findings.
+The full audit reports eight moderate development-tool findings through
+`minimatch` and TypeScript ESLint. They remain unresolved; no forced major
+upgrades or dependency overrides were applied.
+
 ## API
 
 Use trailing slashes. Public item reads are restricted to published artwork; active MFA-verified staff can preview drafts.
@@ -63,10 +97,12 @@ Use trailing slashes. Public item reads are restricted to published artwork; act
 | Endpoint | Methods | Purpose |
 | --- | --- | --- |
 | `/items/` | GET, POST | Paginated artwork list; protected creation |
+| `/items/categories/` | GET | Category values/labels used by published artworks |
+| `/items/date-bounds/` | GET | Earliest/latest known published completion months |
 | `/items/<id>/` | GET, PATCH, DELETE | Read, update, or delete by ID |
 | `/artworks/<slug>/` | GET | Read artwork by stable slug |
 | `/artwork-images/<id>/` | GET | Stream an image subject to current publication and session checks |
-| `/artists/` | GET, POST | Public artist list; protected creation |
+| `/artists/` | GET, POST | Artists linked to published work; protected creation |
 | `/artists/<id>/` | GET, PATCH, DELETE | Read, update, or delete an artist |
 
 POST, PATCH, and DELETE require staff/MFA session authorization and CSRF protection. Image uploads currently use private admin forms; there is no public image-upload API. Item PATCH returns 200 without a response body; successful deletion returns 204.
@@ -93,7 +129,9 @@ curl 'http://127.0.0.1:8000/items/?tag=ceramic&tag=handmade'
 curl 'http://127.0.0.1:8000/items/?order_by=-creation_date'
 ```
 
-Other filters include `name`, `artist`, `min_price`, and `max_price`. Valid `YYYY`/`YYYY-MM` search terms search physical dates rather than textual occurrences. Dates are optional year/month pairs; current year bounds are 1999–2099. The database record's `created` timestamp is separate from physical creation dates.
+Other public filters include `name` and `artist`. `min_price`, `max_price`, and `order_by=price` require an active, MFA-verified staff session; public price queries return 403. Valid `YYYY`/`YYYY-MM` search terms search physical dates rather than textual occurrences. Dates are optional year/month pairs; current year bounds are 1999–2099. The database record's `created` timestamp is separate from physical creation dates.
+
+Public artwork responses explicitly omit price, quantity, database creation timestamp, status, gallery position, and the duplicate artist foreign key. Verified staff retain management fields. Public artist list/detail access requires at least one published artwork.
 
 Successful list responses contain `count`, `next`, `previous`, and `results`. Follow `next` to traverse the collection. Date filters and sorting use full year/month values; MM/YY is a frontend presentation decision.
 
@@ -138,13 +176,14 @@ items/
   admin.py               Private administration forms and lists
   migrations/            Versioned schema and data changes
   tests/                 Topic-specific tests and helpers
+frontend/                Next.js App Router gallery, components, and styles
 logo/                    Light/dark identity source assets
 templates/two_factor/    Account-page presentation
 scripts/                 Documentation page generator
 docs/                    Security notes and behavior specifications
 ```
 
-Local databases, media originals, environment files, the virtual environment, and the personal project checklist are ignored. The temporary visual prototype is not yet part of the application or this repository.
+Local databases, media originals, environment files, the virtual environment, and the personal project checklist are ignored. The approved visual design is implemented in the frontend; the temporary standalone prototype remains outside this repository.
 
 ## Security and remaining work
 

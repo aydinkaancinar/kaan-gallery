@@ -1,3 +1,4 @@
+from .helpers import login_as_verified_staff
 from rest_framework.test import APITestCase
 from ..models import Artist, Item, Tag
 from .helpers import create_item
@@ -7,28 +8,28 @@ class ItemFilterTest(APITestCase):
     def test_item_list_pagination(self):
         items = [
             create_item(name=f"Item {number}", price="50.00", status=Item.Status.PUBLISHED)
-            for number in range(6)
+            for number in range(10)
         ]
 
         first_page = self.client.get("/items/", {"page": 1})
 
         self.assertEqual(first_page.status_code, 200)
-        self.assertEqual(first_page.data["count"], 6)
-        self.assertEqual(len(first_page.data["results"]), 5)
+        self.assertEqual(first_page.data["count"], 10)
+        self.assertEqual(len(first_page.data["results"]), 9)
         self.assertIsNotNone(first_page.data["next"])
         self.assertIsNone(first_page.data["previous"])
         self.assertEqual(
             [item["id"] for item in first_page.data["results"]],
-            [item.id for item in items[:5]],
+            [item.id for item in items[:9]],
         )
 
         # Follow the link returned by the API to retrieve the next page.
         second_page = self.client.get(first_page.data["next"])
 
         self.assertEqual(second_page.status_code, 200)
-        self.assertEqual(second_page.data["count"], 6)
+        self.assertEqual(second_page.data["count"], 10)
         self.assertEqual(len(second_page.data["results"]), 1)
-        self.assertEqual(second_page.data["results"][0]["id"], items[5].id)
+        self.assertEqual(second_page.data["results"][0]["id"], items[9].id)
         self.assertIsNone(second_page.data["next"])
         self.assertIsNotNone(second_page.data["previous"])
 
@@ -126,6 +127,7 @@ class ItemFilterTest(APITestCase):
         self.assertEqual(response.data["results"][0]["id"], item.id)
 
     def test_name_price_category_filter(self):
+        login_as_verified_staff(self.client)
 
         items = [ create_item(**item) for item in [
             {"name": "Magic Bowl", "price": "75.00", "quantity": 2, "category": "kitchenware", "status": Item.Status.PUBLISHED},
@@ -148,6 +150,7 @@ class ItemFilterTest(APITestCase):
         self.assertEqual(response.data["results"][0]["id"], items[3].id)
 
     def test_price_range_includes_boundaries(self):
+        login_as_verified_staff(self.client)
         below = create_item(name="Below range", price="74.99", quantity=1,status=Item.Status.PUBLISHED,)
         minimum = create_item(name="At minimum", price="75.00", quantity=1,status=Item.Status.PUBLISHED,)
         maximum = create_item(name="At maximum", price="100.00", quantity=1,status=Item.Status.PUBLISHED,)
@@ -165,6 +168,7 @@ class ItemFilterTest(APITestCase):
         )
 
     def test_order_by_price_filter(self):
+        login_as_verified_staff(self.client)
 
         items = [ create_item(**item) for item in [
             {"name": "Magic Blue Bowl", "price": "75.00", "quantity": 2, "category": "kitchenware", "status": Item.Status.PUBLISHED},
@@ -184,15 +188,9 @@ class ItemFilterTest(APITestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data["count"], 7)
-        self.assertEqual(len(response.data["results"]), 5)
-        self.assertIsNotNone(response.data["next"])
-
-        # Follow the API link so the requested sorting is preserved on page 2.
-        second_page = self.client.get(response.data["next"])
-        self.assertEqual(second_page.status_code, 200)
-        self.assertEqual(len(second_page.data["results"]), 2)
-        self.assertIsNone(second_page.data["next"])
-        all_results = response.data["results"] + second_page.data["results"]
+        self.assertEqual(len(response.data["results"]), 7)
+        self.assertIsNone(response.data["next"])
+        all_results = response.data["results"]
         self.assertEqual(
             [item["id"] for item in all_results],
             [items[6].id, items[0].id, items[3].id, items[4].id, items[1].id, items[2].id, items[5].id],
@@ -225,6 +223,7 @@ class BasicItemFilterTests(APITestCase):
         ]
 
     def test_minimum_list_filter(self):
+        login_as_verified_staff(self.client)
 
         items = self.items
 

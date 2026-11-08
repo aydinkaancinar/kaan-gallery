@@ -74,7 +74,7 @@ class ItemPublicationTests(APITestCase):
         )
 
     def test_public_pagination_counts_only_published_items(self):
-        for number in range(5):
+        for number in range(9):
             create_item(
                 name=f"Public work {number}", price="50.00",
                 status=Item.Status.PUBLISHED,
@@ -83,12 +83,12 @@ class ItemPublicationTests(APITestCase):
         first_page = self.client.get("/items/")
 
         self.assertEqual(first_page.status_code, 200)
-        self.assertEqual(first_page.data["count"], 6)
-        self.assertEqual(len(first_page.data["results"]), 5)
+        self.assertEqual(first_page.data["count"], 10)
+        self.assertEqual(len(first_page.data["results"]), 9)
         self.assertIsNotNone(first_page.data["next"])
         second_page = self.client.get(first_page.data["next"])
         self.assertEqual(second_page.status_code, 200)
-        self.assertEqual(second_page.data["count"], 6)
+        self.assertEqual(second_page.data["count"], 10)
         self.assertEqual(len(second_page.data["results"]), 1)
         self.assertIsNone(second_page.data["next"])
         returned_ids = [
@@ -96,7 +96,7 @@ class ItemPublicationTests(APITestCase):
             for item in first_page.data["results"] + second_page.data["results"]
         ]
         self.assertNotIn(self.draft.id, returned_ids)
-        self.assertEqual(len(set(returned_ids)), 6)
+        self.assertEqual(len(set(returned_ids)), 10)
 
     def test_staff_can_retrieve_draft(self):
         staff = User.objects.create_user(

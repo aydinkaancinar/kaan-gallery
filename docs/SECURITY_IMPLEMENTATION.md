@@ -88,7 +88,7 @@ Sources: [Item model](../items/models.py), `getData`, `operateItem`, and `artwor
 
 Items default to `draft`. List and detail querysets for callers who are not MFA-verified staff are restricted to `published` before filtering/pagination or `get_object_or_404()`. This prevents public result counts from revealing drafts and returns 404 for draft detail lookups. Slugs improve URLs; they are identifiers, not secrets or authorization controls.
 
-Draft metadata and image views now use the same `is_verified_staff()` helper. It requires authenticated, active staff and OTP verification; a missing verification method returns False. Publication tests explicitly reject password-only staff at both ID and slug detail URLs and allow verified-staff ID preview and list access. Public artist endpoints expose artist records independently of item publication; decide what artist data is intentionally public.
+Draft metadata and image views now use the same `is_verified_staff()` helper. It requires authenticated, active staff and OTP verification; a missing verification method returns False. Publication tests explicitly reject password-only staff at both ID and slug detail URLs and allow verified-staff ID preview and list access. Public artist list/detail querysets now require at least one published artwork unless the caller is verified staff. Artists associated only with drafts, or with no artworks, are omitted from public lists and return 404 on public detail requests.
 
 Tests cover anonymous ID/slug draft hiding, published access, non-staff list visibility, staff preview, search, and pagination counts. Full related-response and non-staff detail coverage is still to be completed.
 
@@ -178,3 +178,28 @@ Immediate priorities:
 6. Complete production settings, storage/Cloudflare origin design, dependency checks, and backup/incident procedures.
 
 The local PROJECT_CHECKLIST.md tracks the larger guided-learning plan. This document should be updated whenever controls or their supporting evidence change.
+
+## Public API field boundary — 2026-11-06
+
+`PublicItemSerializer` explicitly lists the gallery fields for anonymous,
+non-staff, and password-only staff artwork list, ID-detail, and slug-detail
+responses. Price, quantity, database creation timestamp, publication status,
+gallery position, and the duplicate artist foreign key are omitted. Nested
+artist and image serializers also use explicit field lists; image links retain
+the authorization-aware delivery route. Verified staff reads and writes retain
+the management serializer and its validation.
+
+Public `min_price`, `max_price`, and price-ordering requests return 403 before
+filter validation. Public name/category/database-date sorts do not use price
+as a tie-breaker. Verified staff retain the existing price filters and sorts.
+The public date-bounds endpoint considers all dated published artworks,
+independently of pagination and active catalog filters.
+
+Regression coverage lives in `items/tests/test_public_data.py`, alongside the
+existing publication, session, filtering, image, and ordering tests. These
+changes do not implement production rate limiting, shared-cache isolation,
+private storage, or Cloudflare origin restrictions; those remain release work.
+
+`GET /items/categories/` returns only distinct category values present in published artworks, with labels from model choices. It describes the public catalog even for verified staff and is independent of active filters and pagination. Draft-only categories are excluded. Regression tests: `items/tests/test_categories.py`.
+
+Publication verification — 2026-11-08: all 120 backend tests pass, migration drift check reports no changes, Python dependency check passes, and frontend lint/production build pass. npm production dependencies report zero audit findings; eight moderate development-tool findings remain. Browser interaction/accessibility verification and the documented production controls remain outstanding.

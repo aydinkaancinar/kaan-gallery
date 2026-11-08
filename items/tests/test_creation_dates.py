@@ -3,6 +3,8 @@
 These tests intentionally precede the feature implementation. API tests require
 migrations for the creation_year/creation_month model fields first.
 """
+
+from .helpers import login_as_verified_staff
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import SimpleTestCase
@@ -206,6 +208,7 @@ class CreationDateAPITests(APITestCase):
         self.assertCountEqual(self.result_ids(search="2025-03"), [self.later_name.pk, self.earlier_name.pk, self.same_name.pk])
 
     def test_combines_date_category_text_price_and_sorting(self):
+        login_as_verified_staff(self.client)
         self.assertEqual(self.result_ids(creation_year="2025", creation_month="3", category="vase", name="apple", min_price="40", max_price="60", order_by="-creation_date"), [self.earlier_name.pk, self.same_name.pk])
 
     def test_invalid_parameters_return_400(self):

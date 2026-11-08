@@ -22,3 +22,14 @@ def create_item(**overrides):
     values = {"name": "Test artwork", "price": "50.00"}
     values.update(overrides)
     return Item.objects.create(**values)
+
+
+def login_as_verified_staff(client):
+    """Authenticate price/management tests through the real verified session helper."""
+    from django.contrib.auth import get_user_model
+
+    user = get_user_model().objects.create_user(
+        username="filter-test-staff", is_staff=True,
+    )
+    login_with_verified_session(client, user)
+    return user

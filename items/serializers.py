@@ -5,7 +5,7 @@ from django.urls import reverse
 class ArtistSerializer(serializers.ModelSerializer):
     class Meta:
         model = Artist
-        fields = '__all__'
+        fields = ["id", "name", "surname"]
 
 class ArtworkImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
@@ -20,7 +20,25 @@ class ArtworkImageSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
-        fields = '__all__'
+        fields = [
+            "id",
+            "name",
+            "price",
+            "quantity",
+            "created",
+            "category",
+            "description",
+            "artist",
+            "tags",
+            "status",
+            "slug",
+            "creation_year",
+            "creation_month",
+            "display_order",
+            "artist_details",
+            "images",
+            "cover_image",
+        ]
 
     artist_details = ArtistSerializer(
         source="artist",
@@ -74,6 +92,24 @@ class ItemSerializer(serializers.ModelSerializer):
             )
 
         return attrs
+
+
+class PublicItemSerializer(ItemSerializer):
+    class Meta(ItemSerializer.Meta):
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "description",
+            "category",
+            "tags",
+            "creation_year",
+            "creation_month",
+            "artist_details",
+            "images",
+            "cover_image",
+        ]
+        read_only_fields = fields
 
 class ItemFilterSerializer(serializers.Serializer):
     min_price = serializers.DecimalField(

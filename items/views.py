@@ -3,28 +3,57 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from .models import Item, Artist, ArtworkImage
-from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer
+from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer, PublicItemSerializer
 from django.db.models import F, Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import permission_classes
-from .permissions import IsAdminOrReadOnly
 from django.http import FileResponse, Http404
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_GET
 from .permissions import IsAdminOrReadOnly, is_verified_staff
 import re
+from rest_framework.exceptions import PermissionDenied
+
+def artwork_read_serializer(user):
+    if is_verified_staff(user):
+        return ItemSerializer
+
+    return PublicItemSerializer
+
+
+def visible_artists(user):
+    artists = Artist.objects.all()
+
+    if not is_verified_staff(user):
+        artists = artists.filter(
+            items__status=Item.Status.PUBLISHED
+        ).distinct()
+
+    return artists
 
 @api_view(["GET", "POST"])
 @permission_classes([IsAdminOrReadOnly])
 def getData(request):
     if request.method == "GET":
+        verified_staff = is_verified_staff(request.user)
+        if not verified_staff:
+            uses_price_filter = any(
+                key in request.query_params for key in ("min_price", "max_price")
+            )
+            # Check every supplied sort value, including duplicate parameters.
+            uses_price_sort = Item.Fields.PRICE in request.query_params.getlist("order_by")
+            if uses_price_filter or uses_price_sort:
+                raise PermissionDenied(
+                    "Price filters and sorting require verified staff."
+                )
+
         filters = ItemFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
 
         items = Item.objects.select_related("artist").prefetch_related("tags", "images")
-
-        if not is_verified_staff(request.user):
+        if not verified_staff:
             items = items.filter(status=Item.Status.PUBLISHED)
+
         minimum = filters.validated_data.get("min_price")
         maximum = filters.validated_data.get("max_price")
         category = filters.validated_data.get("category")
@@ -109,6 +138,14 @@ def getData(request):
         else:
             items = items.order_by(*Item._meta.ordering)
 
+        if not is_verified_staff(request.user):
+            if order_by == Item.Fields.NAME:
+                items = items.order_by("name", "category", "id")
+            elif order_by == Item.Fields.CATEGORY:
+                items = items.order_by("category", "name", "id")
+            elif order_by == Item.Fields.CREATED:
+                items = items.order_by("created", "category", "name", "id")
+
         if search is not None:
             term = search.strip()
 
@@ -130,11 +167,11 @@ def getData(request):
                 )
                         
         paginator = PageNumberPagination()
-        paginator.page_size = 5
 
         page = paginator.paginate_queryset(items, request)
 
-        serializer = ItemSerializer(
+        serializer_class = artwork_read_serializer(request.user)
+        serializer = serializer_class(
             page,
             many=True,
             context={
@@ -154,7 +191,7 @@ def getData(request):
 @api_view(["DELETE","PATCH","GET"])
 @permission_classes([IsAdminOrReadOnly])
 def operateItem(request, item_id):
-    items = Item.objects.all()
+    items = Item.objects.select_related("artist").prefetch_related("tags", "images")
     if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
     item = get_object_or_404(items, pk=item_id)
@@ -162,7 +199,8 @@ def operateItem(request, item_id):
         item.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
     if request.method == "GET":
-        serializer = ItemSerializer(item)
+        serializer_class = artwork_read_serializer(request.user)
+        serializer = serializer_class(item)
         return Response(serializer.data, status=status.HTTP_200_OK)
     if request.method == "PATCH":
         serializer = ItemSerializer(
@@ -178,7 +216,7 @@ def operateItem(request, item_id):
 @permission_classes([IsAdminOrReadOnly])
 def artistAPI(request):
     if request.method == "GET":
-        artists = Artist.objects.all()
+        artists = visible_artists(request.user)
         serializer = ArtistSerializer(artists, many=True)
         return Response(serializer.data)
     
@@ -191,7 +229,10 @@ def artistAPI(request):
 @api_view(["DELETE","PATCH","GET"])
 @permission_classes([IsAdminOrReadOnly])
 def operateArtist(request, item_id):
-    artist = get_object_or_404(Artist, pk=item_id)
+    artist = get_object_or_404(
+        visible_artists(request.user),
+        pk=item_id,
+    )
     if request.method == "DELETE":
         artist.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -211,13 +252,14 @@ def operateArtist(request, item_id):
 @api_view(["GET"])
 @permission_classes([IsAdminOrReadOnly])
 def artwork_detail(request, slug):
-    items = Item.objects.select_related("artist").prefetch_related("tags")
+    items = Item.objects.select_related("artist").prefetch_related("tags", "images")
 
     if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
 
     item = get_object_or_404(items, slug=slug)
-    serializer = ItemSerializer(item)
+    serializer_class = artwork_read_serializer(request.user)
+    serializer = serializer_class(item)
 
     return Response(serializer.data)
 
@@ -242,3 +284,49 @@ def artwork_image(request, image_id):
     response = FileResponse(file)
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+@api_view(["GET"])
+@permission_classes([IsAdminOrReadOnly])
+def artwork_date_bounds(request):
+    dated_artworks = Item.objects.filter(
+        status=Item.Status.PUBLISHED,
+        creation_year__isnull=False,
+        creation_month__isnull=False,
+    )
+
+    earliest = dated_artworks.order_by(
+        "creation_year", "creation_month", "id"
+    ).values_list("creation_year", "creation_month").first()
+
+    latest = dated_artworks.order_by(
+        "-creation_year", "-creation_month", "-id"
+    ).values_list("creation_year", "creation_month").first()
+
+    def format_month(value):
+        if value is None:
+            return None
+
+        year, month = value
+        return f"{year:04d}-{month:02d}"
+
+    return Response({
+        "earliest": format_month(earliest),
+        "latest": format_month(latest),
+    })
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminOrReadOnly])
+def artwork_categories(request):
+    """Public catalog categories, independent of filters and pagination."""
+    populated = set(
+        Item.objects.filter(status=Item.Status.PUBLISHED)
+        .order_by()
+        .values_list("category", flat=True)
+        .distinct()
+    )
+    return Response([
+        {"value": value, "label": label}
+        for value, label in Item.Category.choices
+        if value in populated
+    ])
