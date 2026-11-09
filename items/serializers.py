@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Item, Artist, ArtworkImage
+from .models import Item, Artist, ArtworkImage, Category
 from django.urls import reverse
 
 class ArtistSerializer(serializers.ModelSerializer):
@@ -18,6 +18,10 @@ class ArtworkImageSerializer(serializers.ModelSerializer):
         return reverse("artwork-image", kwargs={"image_id": obj.pk})
 
 class ItemSerializer(serializers.ModelSerializer):
+    category = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Category.objects.all(), required=False,
+    )
+
     class Meta:
         model = Item
         fields = [
@@ -126,8 +130,8 @@ class ItemFilterSerializer(serializers.Serializer):
         required=False,
     )
 
-    category = serializers.ChoiceField(
-        choices=Item.Category.choices,
+    category = serializers.SlugRelatedField(
+        slug_field="slug", queryset=Category.objects.all(),
         required=False,
     )
 

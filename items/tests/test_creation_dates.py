@@ -93,7 +93,7 @@ class CreationDateValidationTests(SimpleTestCase):
             with self.subTest(year=year, month=month):
                 item = Item(name="Vase", price="25.00", slug="test-vase", creation_year=year, creation_month=month)
                 with self.assertRaises(ValidationError) as error:
-                    item.full_clean(validate_unique=False, validate_constraints=False)
+                    item.full_clean(exclude=["category"], validate_unique=False, validate_constraints=False)
                 self.assertIn(field, error.exception.message_dict)
 
 

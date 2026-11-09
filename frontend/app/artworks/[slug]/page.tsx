@@ -51,6 +51,56 @@ async function getArtwork(slug: string): Promise<ArtworkDetail> {
   return response.json();
 }
 
+export async function generateMetadata({
+  params,
+}: ArtworkPageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const artwork = await getArtwork(slug);
+
+  const title = `${artwork.name} — Aydın Kaan Çınar`;
+
+  const description =
+    artwork.description.trim().replace(/\s+/g, " ").slice(0, 160) ||
+    `${artwork.name}, from the art gallery of Aydın Kaan Çınar.`;
+
+  const artworkPath = `/artworks/${encodeURIComponent(slug)}`;
+
+  const previewImage = artwork.cover_image
+    ? {
+        url: new URL(
+            artwork.cover_image.image,
+            BACKEND_ORIGIN
+        ).href,
+        alt: artwork.cover_image.alt_text || artwork.name,
+        }
+    : {
+        url: "/opengraph-image.png",
+        alt: "Red sun emblem beside the stacked name Aydın Kaan Çınar.",
+        };
+
+  return {
+    title,
+    description,
+    alternates: {
+      canonical: artworkPath,
+    },
+    openGraph: {
+      type: "website",
+      siteName: "Kaan Gallery",
+      title,
+      description,
+      url: artworkPath,
+      images: [previewImage],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [previewImage],
+    },
+  };
+}
+
 export default async function ArtworkPage({
   params,
   searchParams,
@@ -64,20 +114,7 @@ export default async function ArtworkPage({
       ? query.from
       : "/";
 
-  const response = await fetch(
-    `${BACKEND_ORIGIN}/artworks/${encodeURIComponent(slug)}/`,
-    { cache: "no-store" }
-  );
-
-  if (response.status === 404) {
-    notFound();
-  }
-
-  if (!response.ok) {
-    throw new Error("Unable to load artwork.");
-  }
-
-  const artwork: ArtworkDetail = await response.json();
+  const artwork = await getArtwork(slug);
 
   const completionDate =
     artwork.creation_year !== null &&

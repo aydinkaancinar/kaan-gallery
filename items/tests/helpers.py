@@ -21,6 +21,8 @@ def create_item(**overrides):
     """Create an item with ordinary defaults; publication remains explicit."""
     values = {"name": "Test artwork", "price": "50.00"}
     values.update(overrides)
+    if isinstance(values.get("category"), str):
+        values["category_id"] = values.pop("category")
     return Item.objects.create(**values)
 
 

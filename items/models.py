@@ -3,19 +3,24 @@ from django.utils.text import slugify
 from .validators import validate_image_size, validate_image_format
 from django.core.validators import MaxValueValidator, MinValueValidator
 
+class Category(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True)
+    position = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name_plural = "categories"
+        ordering = ["position", "name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Item(models.Model):
 
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PUBLISHED = "published", "Published"
-
-    class Category(models.TextChoices):
-        SCULPTURE = "sculpture", "Sculpture"
-        VASE = "vase", "Vase"
-        KITCHENWARE = "kitchenware", "Kitchenware"
-        PRINT = "print", "Print"
-        LINOPRESS = "linopress", "Linopress"
-        MISCELLANEOUS = "miscellaneous", "Miscellaneous"
 
     class Fields(models.TextChoices):
         NAME = "name", "Name"
@@ -29,11 +34,14 @@ class Item(models.Model):
     price = models.DecimalField(max_digits=10, decimal_places=2)
     quantity = models.PositiveIntegerField(default=0)
     created = models.DateTimeField(auto_now_add=True)
-    category = models.CharField(
-        max_length=20,
-        choices=Category.choices,
-        default=Category.MISCELLANEOUS,
-        )
+    category = models.ForeignKey(
+        "Category",
+        to_field="slug",
+        db_column="category",
+        on_delete=models.PROTECT,
+        default="miscellaneous",
+        related_name="items",
+    )
     description = models.CharField(max_length=200, default="")
     artist = models.ForeignKey(
         "Artist",

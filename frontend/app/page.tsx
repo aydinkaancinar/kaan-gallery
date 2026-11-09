@@ -1,3 +1,4 @@
+import GalleryFooter from "@/components/GalleryFooter";
 import Link from "next/link";
 import GalleryHeader from "@/components/GalleryHeader";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -222,15 +223,7 @@ export default async function Home({ searchParams }: HomeProps) {
           filtersQuery={filters.toString()}
         />
       </main>
-      <footer className="gallery-footer">
-        <a
-          href="https://kaancinar.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          kaancinar.com
-        </a>
-      </footer>
+      <GalleryFooter />
     </div>
   );
 }

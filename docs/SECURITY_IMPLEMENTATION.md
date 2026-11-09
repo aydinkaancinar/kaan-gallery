@@ -200,6 +200,14 @@ existing publication, session, filtering, image, and ordering tests. These
 changes do not implement production rate limiting, shared-cache isolation,
 private storage, or Cloudflare origin restrictions; those remain release work.
 
-`GET /items/categories/` returns only distinct category values present in published artworks, with labels from model choices. It describes the public catalog even for verified staff and is independent of active filters and pagination. Draft-only categories are excluded. Regression tests: `items/tests/test_categories.py`.
+`GET /items/categories/` returns only distinct category values present in published artworks, with labels from admin-managed category records. It describes the public catalog even for verified staff and is independent of active filters and pagination. Draft-only categories are excluded. Regression tests: `items/tests/test_categories.py`.
 
 Publication verification — 2026-11-08: all 120 backend tests pass, migration drift check reports no changes, Python dependency check passes, and frontend lint/production build pass. npm production dependencies report zero audit findings; eight moderate development-tool findings remain. Browser interaction/accessibility verification and the documented production controls remain outstanding.
+
+Publication verification — 2026-11-08, updated milestone: 123 backend tests and
+12 frontend behavior tests pass. Frontend lint, production build, migration drift,
+and Python dependency checks pass. Migration 0022 introduces admin-managed
+categories while retaining category slugs in API representations and filters.
+Clay Studio shared-design input is validated and compressed input decoding has
+an output-size limit. Interactive browser QA and production security work remain
+outstanding; these checks do not establish production readiness.

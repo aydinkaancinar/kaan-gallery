@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
-from .models import Item, Artist, ArtworkImage
+from .models import Item, Artist, ArtworkImage, Category
 from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer, PublicItemSerializer
 from django.db.models import F, Q
 from rest_framework.pagination import PageNumberPagination
@@ -50,7 +50,7 @@ def getData(request):
         filters = ItemFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
 
-        items = Item.objects.select_related("artist").prefetch_related("tags", "images")
+        items = Item.objects.select_related("artist", "category").prefetch_related("tags", "images")
         if not verified_staff:
             items = items.filter(status=Item.Status.PUBLISHED)
 
@@ -114,13 +114,13 @@ def getData(request):
 
         if order_by is not None:
             if order_by == Item.Fields.PRICE:
-                items = items.order_by("price", "name", "category", "id")
+                items = items.order_by("price", "name", "category__slug", "id")
             elif order_by == Item.Fields.NAME:
-                items = items.order_by("name", "price", "category", "id")
+                items = items.order_by("name", "price", "category__slug", "id")
             elif order_by == Item.Fields.CATEGORY:
-                items = items.order_by("category", "name", "price", "id")
+                items = items.order_by("category__slug", "name", "price", "id")
             elif order_by == Item.Fields.CREATED:
-                items = items.order_by("created", "category", "name", "price", "id")
+                items = items.order_by("created", "category__slug", "name", "price", "id")
             elif order_by == Item.Fields.CREATION_DATE_ASCENDING:
                 items = items.order_by(
                     F("creation_year").asc(nulls_last=True),
@@ -140,11 +140,11 @@ def getData(request):
 
         if not is_verified_staff(request.user):
             if order_by == Item.Fields.NAME:
-                items = items.order_by("name", "category", "id")
+                items = items.order_by("name", "category__slug", "id")
             elif order_by == Item.Fields.CATEGORY:
-                items = items.order_by("category", "name", "id")
+                items = items.order_by("category__slug", "name", "id")
             elif order_by == Item.Fields.CREATED:
-                items = items.order_by("created", "category", "name", "id")
+                items = items.order_by("created", "category__slug", "name", "id")
 
         if search is not None:
             term = search.strip()
@@ -191,7 +191,7 @@ def getData(request):
 @api_view(["DELETE","PATCH","GET"])
 @permission_classes([IsAdminOrReadOnly])
 def operateItem(request, item_id):
-    items = Item.objects.select_related("artist").prefetch_related("tags", "images")
+    items = Item.objects.select_related("artist", "category").prefetch_related("tags", "images")
     if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
     item = get_object_or_404(items, pk=item_id)
@@ -252,7 +252,7 @@ def operateArtist(request, item_id):
 @api_view(["GET"])
 @permission_classes([IsAdminOrReadOnly])
 def artwork_detail(request, slug):
-    items = Item.objects.select_related("artist").prefetch_related("tags", "images")
+    items = Item.objects.select_related("artist", "category").prefetch_related("tags", "images")
 
     if not is_verified_staff(request.user):
         items = items.filter(status=Item.Status.PUBLISHED)
@@ -319,14 +319,10 @@ def artwork_date_bounds(request):
 @permission_classes([IsAdminOrReadOnly])
 def artwork_categories(request):
     """Public catalog categories, independent of filters and pagination."""
-    populated = set(
-        Item.objects.filter(status=Item.Status.PUBLISHED)
-        .order_by()
-        .values_list("category", flat=True)
-        .distinct()
-    )
+    categories = Category.objects.filter(
+        items__status=Item.Status.PUBLISHED,
+    ).distinct()
     return Response([
-        {"value": value, "label": label}
-        for value, label in Item.Category.choices
-        if value in populated
+        {"value": category.slug, "label": category.name}
+        for category in categories
     ])

@@ -8,7 +8,7 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 
 - Artwork and artist management through Django admin and protected API endpoints.
 - Draft/published workflow with restricted draft metadata and image access.
-- Categories, artist relationships, and many-to-many tags.
+- Admin-managed categories, artist relationships, and many-to-many tags.
 - Name/description search, physical creation-date search, and combined filters.
 - Inclusive month/year ranges and paginated lists (nine items per page).
 - Optional admin-set gallery positions, followed by physical creation date newest first; stable ID tie-breakers.
@@ -19,9 +19,11 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 - Session authentication, authenticator-app MFA, CSRF enforcement, and staff authorization.
 - Responsive light/dark gallery with real images, category/search/month filters, URL-based pagination, and reset controls.
 - Individual artwork pages with uncropped photos, image navigation, and a full-screen viewer.
-- Loading, error/retry, and not-found screens; adaptive sun favicon and branded sharing preview.
+- Loading, error/retry, and not-found screens; adaptive sun favicon and artwork-specific sharing metadata.
+- Browser-aware theme defaults, persistent manual theme choices, and contact links.
+- Clay Studio vessel modeling, clay estimates, undo/redo, saved designs, and shareable design links. See [model assumptions](docs/CLAY_STUDIO.md); the vessel estimate includes a provisional 25% adjustment, not a manufacturer calibration.
 - Public field allowlists hide prices, inventory quantities, and management metadata; price queries require verified staff.
-- **120 passing backend tests**, verified 2026-11-08; frontend lint and production build also pass.
+- **123 passing backend tests**, verified 2026-11-08; 12 frontend behavior tests, lint, and production build also pass.
 
 ## Architecture
 
@@ -144,6 +146,10 @@ Artwork responses include ordered `images` and `cover_image` (the first image by
 Published images are public. Draft images require an active, MFA-verified staff session. Unpublishing an artwork denies subsequent anonymous requests to the same image endpoint. Previously downloaded copies cannot be recalled. Successful image responses use private/no-store caching; error-response and production edge-cache policy still need completion.
 
 Uploads allow JPEG, PNG, and WebP, up to 10 MiB and 25 million pixels. Validation inspects contents; a `.jpeg` filename alone is not sufficient (for example, multi-picture MPO files are not in the allowlist). These checks are not a claim that every upload threat is solved.
+
+## Managing categories
+
+Use **Admin → Categories → Add category** to create a category, then select it on an artwork (or use the + button beside its category field). Names and positions can be edited; lower positions appear first in gallery filters. A category appears publicly once it has a published artwork. Existing categories and artwork assignments are preserved by migration 0022. Category slugs stay fixed after creation to preserve links, and categories in use cannot be deleted. Keep Miscellaneous available as the default for new artworks.
 
 ## Tests and development checks
 

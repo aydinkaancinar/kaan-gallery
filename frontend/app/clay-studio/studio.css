@@ -1,0 +1,551 @@
+.cs {
+  --ink: var(--foreground);
+  --soft: var(--muted);
+  --line: var(--border);
+  --clay: var(--accent);
+  padding: 0 0 24px;
+  color: var(--ink);
+  background: var(--background);
+  font:
+    15px/1.6 Arial,
+    Helvetica,
+    sans-serif;
+}
+.cs * {
+  box-sizing: border-box;
+}
+.cs button,
+.cs select {
+  font: inherit;
+  color: inherit;
+}
+.cs button {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  background: transparent;
+  padding: 8px 12px;
+  border-radius: 0;
+}
+.cs button:hover {
+  background: color-mix(in srgb, var(--foreground) 5%, var(--background));
+}
+.cs button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.cs button:focus-visible,
+.cs input:focus-visible,
+.cs select:focus-visible,
+.cs circle:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 4px;
+}
+.cs-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  padding: 24px 0;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+}
+.cs-header a {
+  color: var(--ink);
+  text-decoration: none;
+  font-size: 13px;
+  letter-spacing: 0;
+}
+.cs-intro {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 40px 0 32px;
+}
+.cs-eyebrow {
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  font-weight: 600;
+  margin: 0 0 20px;
+  color: var(--soft);
+}
+.cs h1 {
+  font:
+    400 24px/1.4 Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: 0;
+  margin: 0 0 12px;
+}
+.cs-intro p:last-child {
+  color: var(--soft);
+  margin: 0;
+}
+.cs-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.cs-actions button {
+  font-size: 11px;
+}
+.cs-workspace {
+  display: grid;
+  grid-template-columns: 260px minmax(340px, 1fr) 270px;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  overflow: hidden;
+}
+.cs-panel {
+  padding: 26px 22px;
+  background: var(--background);
+}
+.cs-templates {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.cs-templates button {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  padding: 10px 5px;
+  font-size: 11px;
+}
+.cs-templates button[aria-pressed="true"] {
+  border-color: var(--clay);
+  background: color-mix(in srgb, var(--accent) 7%, var(--background));
+  color: var(--clay);
+}
+.cs-templates svg {
+  width: 48px;
+  height: 58px;
+  margin-bottom: 5px;
+  stroke: #454545;
+  stroke-width: 1;
+}
+.cs-small {
+  font-size: 11px;
+  color: var(--soft);
+  margin: 16px 0 30px;
+}
+.cs-slider {
+  display: block;
+  margin: 18px 0;
+}
+.cs-slider > span {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  gap: 6px;
+}
+.cs-slider output {
+  font-size: 11px;
+  color: var(--clay);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.cs-slider input {
+  width: 100%;
+  accent-color: var(--clay);
+  height: 4px;
+  display: block;
+  margin-top: 16px;
+  cursor: pointer;
+}
+.cs-select {
+  display: block;
+  font-size: 12px;
+  margin-top: 24px;
+}
+.cs-select select {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  background: transparent;
+  border-radius: 3px;
+  padding: 8px;
+}
+.cs-scale {
+  display: flex;
+  justify-content: space-between;
+  color: var(--soft);
+  font-size: 10px;
+  margin-top: -8px;
+}
+.cs-stage {
+  position: relative;
+  min-width: 0;
+  background: color-mix(in srgb, var(--border) 20%, var(--background));
+  border-inline: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+}
+.cs-stage-top {
+  padding: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+}
+.cs-stage-top b {
+  font-weight: 400;
+  color: var(--soft);
+}
+.cs-stage-top > div {
+  display: flex;
+  gap: 4px;
+}
+.cs-stage-top button {
+  padding: 6px 8px;
+  font-size: 10px;
+  letter-spacing: 0;
+}
+.cs-stage-top button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--background);
+  border-color: var(--ink);
+}
+.cs-view {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 620/600;
+  margin: auto 0;
+  overflow: hidden;
+}
+.cs-view canvas,
+.cs-view > svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+.cs-view > svg {
+  touch-action: none;
+  color: #786b5b;
+}
+.cs-view circle {
+  cursor: ew-resize;
+}
+.cs-stage-hint {
+  text-align: center;
+  color: var(--soft);
+  font-size: 11px;
+  margin: 0 10px 24px;
+}
+.cs-dimensions {
+  display: flex;
+  justify-content: space-around;
+  border-top: 1px solid var(--line);
+  padding: 20px 10px;
+  gap: 8px;
+}
+.cs-dimensions span {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: var(--soft);
+}
+.cs-dimensions b {
+  display: block;
+  font-size: 14px;
+  letter-spacing: 0;
+  font-weight: 400;
+  color: var(--ink);
+  margin-top: 5px;
+}
+.cs-weight {
+  font:
+    400 56px/1.2 Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: -0.04em;
+  color: var(--clay);
+  margin-top: 28px;
+  font-variant-numeric: tabular-nums;
+}
+.cs-weight span {
+  font:
+    20px Arial,
+    Helvetica,
+    sans-serif;
+  letter-spacing: 0;
+  margin-left: 8px;
+}
+.cs-weight-caption {
+  color: var(--soft);
+  font-size: 12px;
+  margin: 8px 0 24px;
+}
+.cs-breakdown {
+  border-block: 1px solid var(--line);
+  padding: 10px 0;
+  margin-bottom: 26px;
+}
+.cs-breakdown p {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.cs-breakdown b {
+  font-weight: 400;
+}
+.cs details {
+  font-size: 11px;
+  color: var(--soft);
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  margin-top: 28px;
+}
+.cs summary {
+  cursor: pointer;
+  color: var(--ink);
+}
+@media (min-width: 1500px) {
+  .cs-workspace {
+    grid-template-columns: 290px minmax(340px, 1fr) 300px;
+  }
+}
+@media (max-width: 1050px) {
+  .cs-workspace {
+    grid-template-columns: 220px minmax(300px, 1fr);
+  }
+  .cs-estimate {
+    grid-column: 1/-1;
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0 35px;
+  }
+  .cs-estimate > .cs-eyebrow,
+  .cs-estimate > details,
+  .cs-estimate > .cs-share {
+    grid-column: 1/-1;
+  }
+  .cs-estimate > .cs-weight {
+    grid-row: 2;
+  }
+  .cs-estimate > div:has(.cs-slider) {
+    grid-column: 2;
+    grid-row: 2/5;
+  }
+  .cs-intro {
+    align-items: start;
+    flex-direction: column;
+  }
+  .cs-stage {
+    border-right: 0;
+  }
+}
+@media (max-width: 620px) {
+  .cs {
+    padding: 0 0 20px;
+  }
+  .cs-header > span:nth-child(2) {
+    display: none;
+  }
+  .cs-intro {
+    padding: 28px 0;
+  }
+  .cs-workspace {
+    display: flex;
+    flex-direction: column;
+  }
+  .cs-panel {
+    padding: 22px;
+  }
+  .cs-workspace > .cs-panel:first-child {
+    order: 2;
+    border-top: 1px solid var(--line);
+  }
+  .cs-stage {
+    order: 1;
+    border: 0;
+  }
+  .cs-estimate {
+    order: 3;
+    display: block;
+  }
+  .cs-templates {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .cs-templates button {
+    font-size: 10px;
+  }
+  .cs-view {
+    max-height: 520px;
+  }
+  .cs-stage-top {
+    padding: 15px;
+  }
+  .cs-weight {
+    margin-top: 10px;
+  }
+}
+
+.cs-view > svg {
+  color: var(--muted);
+}
+.cs-view text {
+  fill: var(--foreground);
+}
+.cs-view circle {
+  stroke: var(--accent);
+}
+.cs-view circle[aria-valuenow] {
+  fill: var(--background);
+}
+.cs-view circle:focus,
+.cs-view circle:hover {
+  fill: var(--accent);
+}
+.cs-select select {
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.cs-view circle[data-selected="true"] {
+  fill: var(--accent);
+}
+
+.cs-proportions {
+  margin-top: 32px;
+}
+
+.cs-save-status {
+  margin: 20px 0 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.cs-beta {
+  position: relative;
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 8px;
+  border: 1px solid var(--line);
+  color: var(--clay);
+  font-size: 11px;
+}
+
+.cs-beta > [tabindex] {
+  display: block;
+  padding: 2px 7px;
+  cursor: help;
+}
+
+.cs-beta-note {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  z-index: 2;
+  width: min(240px, 78vw);
+  transform: translateX(-50%);
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  background: var(--background);
+  color: var(--ink);
+  font-size: 12px;
+  line-height: 1.5;
+  visibility: hidden;
+}
+
+.cs-beta:hover .cs-beta-note,
+.cs-beta:focus-within .cs-beta-note {
+  visibility: visible;
+}
+
+.cs-unit-select,
+.cs-dot-controls,
+.cs-hand-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.cs-unit-select select {
+  border: 1px solid var(--line);
+  background: var(--background);
+  padding: 6px;
+}
+
+.cs-dot-controls {
+  flex-wrap: wrap;
+  color: var(--soft);
+}
+
+.cs-view > .cs-hand {
+  pointer-events: none;
+  fill: color-mix(in srgb, var(--ink) 16%, var(--background));
+  stroke: color-mix(in srgb, var(--ink) 32%, var(--background));
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.cs-hand-crease {
+  fill: none;
+  stroke-linecap: round;
+}
+
+.cs-hand-toggle {
+  align-self: center;
+  margin: 0 10px 10px;
+  color: var(--soft);
+}
+
+.cs-hand-toggle input {
+  accent-color: var(--clay);
+}
+
+.cs .cs-share button {
+  width: 100%;
+  margin-top: 24px;
+  background: var(--clay);
+  color: var(--background);
+  border-color: var(--clay);
+  font-size: 12px;
+  padding: 12px;
+}
+
+.cs-share label {
+  display: block;
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.cs-share input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin-top: 4px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  background: var(--background);
+  color: var(--ink);
+  font: inherit;
+}
+
+.cs-dot-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--line);
+}
+
+.cs-dot-stepper button {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 0;
+  font-size: 14px;
+}
+
+.cs-dot-stepper output {
+  min-width: 30px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

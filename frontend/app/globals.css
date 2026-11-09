@@ -5,6 +5,7 @@
 }
 
 :root {
+  color-scheme: light;
   --background: #f9f8f5;
   --foreground: #20201f;
   --muted: #686763;
@@ -13,6 +14,7 @@
 }
 
 html[data-theme="dark"] {
+  color-scheme: dark;
   --background: #161615;
   --foreground: #eeeae1;
   --muted: #b0aba0;
@@ -121,23 +123,83 @@ html[data-theme="dark"] .logo-dark {
   mix-blend-mode: screen;
 }
 
+.gallery-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 0 0;
+}
+
+.gallery-contact-links {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.personal-site-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  color: var(--muted);
+  background: transparent;
+}
+
+.personal-site-link svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.personal-site-link:hover {
+  border-color: var(--muted);
+  color: var(--foreground);
+}
+
+.personal-site-link:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
 .theme-toggle {
   display: flex;
   justify-content: flex-end;
   gap: 2px;
-  padding: 16px 0 0;
 }
 
 .theme-toggle button {
-  padding: 5px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 8px;
   border: 1px solid transparent;
-  border-radius: 20px;
+  border-radius: 50%;
   background: transparent;
   color: var(--muted);
-  font: inherit;
-  font-size: 11px;
-  letter-spacing: 0.06em;
   cursor: pointer;
+}
+
+.theme-toggle svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.theme-toggle button:hover {
+  color: var(--foreground);
 }
 
 .theme-toggle button[aria-pressed="true"] {

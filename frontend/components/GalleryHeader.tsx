@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 
-export default function GalleryHeader() {
+export default function GalleryHeader({ backToGallery = false }: { backToGallery?: boolean }) {
   return (
-    <header className="gallery-header">
+    <header className="gallery-header" style={{ flexWrap: "wrap" }}>
       <Link className="gallery-identity" href="/" aria-label="Aydın Kaan Çınar — Home">
         <Image
           unoptimized
@@ -34,6 +34,9 @@ export default function GalleryHeader() {
           ))}
         </span>
       </Link>
+      <nav aria-label="Gallery navigation" style={{ width: "100%", textAlign: "center", marginTop: 22 }}>
+        <Link href={backToGallery ? "/" : "/clay-studio"} style={{ color: "var(--accent)", fontSize: 12, textUnderlineOffset: 4 }}>{backToGallery ? "Back to the gallery" : "Clay studio — design a pot"}</Link>
+      </nav>
     </header>
   );
 }

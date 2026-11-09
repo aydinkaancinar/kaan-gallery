@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Item, Artist, Tag, ArtworkImage
+from .models import Item, Artist, Tag, ArtworkImage, Category
 from django import forms
 from django.db import models
 from django.urls import reverse
@@ -30,9 +30,21 @@ class ItemAdmin(admin.ModelAdmin):
     list_display = ["name", "id", "display_order", "creation_year", "creation_month", "category", "artist", "price", "quantity", "status"]
     search_fields = ["name", "description", "artist__name", "tags__name"]
     list_filter = ["category", "status"]
-    list_select_related = ["artist"]
+    list_select_related = ["artist", "category"]
     filter_horizontal = ["tags"]
     list_editable = ["status", "display_order"]
     inlines = [ArtworkImageInline]
 admin.site.register(Artist)
 admin.site.register(Tag)
+
+
+@admin.register(Category)
+class CategoryAdmin(admin.ModelAdmin):
+    list_display = ["name", "slug", "position"]
+    list_editable = ["position"]
+    search_fields = ["name", "slug"]
+    prepopulated_fields = {"slug": ("name",)}
+
+    def get_readonly_fields(self, request, obj=None):
+        # Slugs are persistent API identifiers referenced by artwork foreign keys.
+        return ["slug"] if obj else []

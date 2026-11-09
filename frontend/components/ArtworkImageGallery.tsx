@@ -50,7 +50,13 @@ export default function ArtworkImageGallery({
       >
         <div className={`artwork-detail-image${selected ? " has-image" : ""}`}>
           {selected ? (
-            <Image src={selected.src} alt={selected.alt} fill unoptimized />
+            <Image
+              src={selected.src}
+              alt={selected.alt}
+              fill
+              unoptimized
+              loading="eager"
+            />
           ) : (
             <span>Image unavailable</span>
           )}
