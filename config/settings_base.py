@@ -93,4 +93,3 @@ AXES_COOLOFF_MESSAGE = (
     "Please wait 15 minutes before trying again."
 )
 AXES_ENABLE_RETRY_AFTER_HEADER = True
-
