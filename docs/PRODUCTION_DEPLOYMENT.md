@@ -1,7 +1,7 @@
 # Containerized Django deployment preparation
 
-The backend container is implemented and verified locally. **Render has not been
-created or deployed, and kaancinar.com has not been changed.** Local development now runs through [Docker Compose](LOCAL_DOCKER.md), with
+The backend container is implemented and verified locally. **The backend is now deployed for verification on Render Free in Virginia;
+kaancinar.com has not been changed. See [the live deployment record](RENDER_DEPLOYMENT.md).** Local development now runs through [Docker Compose](LOCAL_DOCKER.md), with
 loopback-only HTTP settings and the same Neon/R2 storage.
 
 ## Design
@@ -46,7 +46,7 @@ the imported password hashes and MFA records remain in PostgreSQL.
 credential Django needs is the storage token; do not give it the control,
 analytics or Resend secrets. Those remain in the Worker.
 
-## Render setup — next, not yet performed
+## Render setup procedure — initial deployment completed
 
 1. Create a Docker Web Service from the repository, in a region near Neon
    N. Virginia. Set Dockerfile path to `./Dockerfile` and leave the Docker start
@@ -74,9 +74,9 @@ analytics or Resend secrets. Those remain in the Worker.
    preview and verify it, then plan the kaancinar.com switch. Database and Worker
    credentials never belong in `NEXT_PUBLIC_*` variables.
 
-No Render manifest automatically provisions a paid service. Region, plan,
-domain/proxy behavior and the release migration mechanism still need selection
-and live verification.
+No Render manifest provisions a paid service. Virginia and Free were selected,
+and temporary-domain/proxy behavior was verified. The release migration mechanism
+and public-domain setup still need completion.
 
 ## Local verification completed
 

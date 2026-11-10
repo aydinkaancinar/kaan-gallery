@@ -275,3 +275,10 @@ and verified locally, with 167 backend tests passing. The image runs Gunicorn
 as a non-root user, serves admin static files with WhiteNoise, and requires
 runtime PostgreSQL/R2 credentials. Render setup and production deployment remain
 pending. See `.env.example` for configuration names, never actual secrets.
+
+## Render verification deployment
+
+The backend is [live on Render](https://kaan-gallery-backend.onrender.com/items/)
+on the Free plan in Virginia. See the [deployment record](docs/RENDER_DEPLOYMENT.md)
+for the source commit, runtime settings, verified checks and remaining release
+work. The existing kaancinar.com website remains unchanged.
