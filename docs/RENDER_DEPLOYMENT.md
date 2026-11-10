@@ -15,7 +15,7 @@ has not been deployed.
 | Verified code commit | 2960db96ec32df6b15136c3e2cf4fbaacc68a785 |
 | Live deploy | dep-dbpphm74j4sc738qoh50 |
 | Health path | /healthz/ |
-| Auto-deploy | Disabled; manual deploys during verification |
+| Auto-deploy | Disabled; GitHub Actions deploy hook after checks (once configured) |
 
 [Open backend](https://kaan-gallery-backend.onrender.com/items/) ·
 [Open admin](https://kaan-gallery-backend.onrender.com/admin/) ·
@@ -69,6 +69,31 @@ Free hosting is being used for initial verification, not as an always-on promise
 4. Deploy the new Vercel frontend using this backend origin on a preview first.
    Keep database and Worker credentials out of frontend variables. Switch the
    public domain only after end-to-end verification.
+
+## Backend CI/CD
+
+The [GitHub Actions workflow](../.github/workflows/render-backend.yml) runs on
+every push to `deploy/render-backend` (and can be started manually). It checks
+Django configuration and migration drift, runs the backend tests against an
+isolated SQLite test database, and builds the production Docker image. Only then
+does it call Render's deploy hook with the exact tested commit SHA. Render builds
+its own image from that commit and runs it with the service's existing private
+environment settings. The GitHub runner does not receive Neon or R2 credentials.
+The locally built CI image is a build check; it is not uploaded to a registry.
+
+One setup step is required: in the Render service's **Settings**, copy its
+**Deploy Hook URL**. In the GitHub repository's **Settings → Secrets and variables
+→ Actions**, create a repository secret named `RENDER_DEPLOY_HOOK_URL` with that
+URL as its value. Never commit or paste the URL into logs or documentation. Keep
+Render's own Auto-Deploy setting **Off**, or a commit could deploy before the
+GitHub checks finish. The workflow verifies that the hook targets this backend
+service. Once the secret is saved, the next push to this branch activates CI/CD.
+
+The GitHub job reports that Render accepted the request; Render's asynchronous
+build and health check must still be watched in its Dashboard. The workflow
+does not run database migrations. Schema changes need a reviewed migration
+step with a direct Neon connection before the new code is released. A failed
+test, Docker build, or missing secret stops the deploy trigger.
 
 To deploy a reviewed commit later, use the Render Dashboard or:
 
