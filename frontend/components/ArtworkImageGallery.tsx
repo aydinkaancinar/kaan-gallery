@@ -8,6 +8,7 @@ import ArtworkImageViewer from "@/components/ArtworkImageViewer";
 type GalleryImage = {
   id: number;
   src: string;
+  viewerSrc: string;
   alt: string;
 };
 
@@ -56,6 +57,7 @@ export default function ArtworkImageGallery({
               fill
               unoptimized
               loading="eager"
+              fetchPriority="high"
             />
           ) : (
             <span>Image unavailable</span>
@@ -67,7 +69,7 @@ export default function ArtworkImageGallery({
         {children}
         {selected && (
           <ArtworkImageViewer
-            src={selected.src}
+            src={selected.viewerSrc}
             alt={selected.alt}
             navigation={navigation}
             onPrevious={images.length > 1 ? previous : undefined}

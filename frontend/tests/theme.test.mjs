@@ -134,5 +134,5 @@ test("missing browser media support has a safe light fallback", () => {
   env.bootstrap();
   env.store.subscribeToTheme(() => {});
   assert.equal(env.store.getTheme(), "light");
-  assert.equal(env.store.getServerTheme(), "light");
+  assert.equal(env.store.getServerTheme(), null);
 });

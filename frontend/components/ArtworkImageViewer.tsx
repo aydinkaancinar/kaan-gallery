@@ -59,7 +59,7 @@ export default function ArtworkImageViewer({
           Close <span aria-hidden="true">×</span>
         </button>
         <div className="artwork-viewer-image">
-          {isOpen && <Image src={src} alt={alt} fill unoptimized />}
+          {isOpen && <Image src={src} alt={alt} fill unoptimized loading="eager" />}
         </div>
         <div className="artwork-viewer-navigation">{navigation}</div>
       </dialog>

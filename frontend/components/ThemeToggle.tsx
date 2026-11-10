@@ -42,12 +42,27 @@ export default function ThemeToggle() {
           <path d="m3 6 9 7 9-7" />
         </svg>
       </a>
+      <a
+        className="personal-site-link"
+        href="https://www.instagram.com/ceramitect/"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Ceramitect on Instagram (opens in a new tab)"
+        title="Ceramitect on Instagram (opens in a new tab)"
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <rect x="3" y="3" width="18" height="18" rx="5" />
+          <circle cx="12" cy="12" r="4" />
+          <circle cx="17.5" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
+        </svg>
+      </a>
       </div>
       <div className="theme-toggle" role="group" aria-label="Color theme">
       <button
         type="button"
         aria-label="Light theme"
         title="Light theme"
+        disabled={theme === null}
         aria-pressed={theme === "light"}
         onClick={() => saveTheme("light")}
       >
@@ -61,6 +76,7 @@ export default function ThemeToggle() {
         type="button"
         aria-label="Dark theme"
         title="Dark theme"
+        disabled={theme === null}
         aria-pressed={theme === "dark"}
         onClick={() => saveTheme("dark")}
       >
