@@ -58,7 +58,15 @@ The package identifies the primary enrolled TOTP device by its internal name `de
 
 [Test helpers](../items/tests/helpers.py) also simulate a completed verified session for unrelated permission/behavior tests. They create a confirmed device, establish a session, and record its persistent ID. This tests downstream authorization, not actual code verification.
 
-Remaining work: incorrect numeric codes, replay rejection, recovery-code single use, recovery procedures, additional bypass checks, and login rate limiting. Having the recovery-code plugin installed does not prove recovery has been configured, exercised, or safely documented.
+Remaining work: incorrect numeric codes, replay rejection, recovery-code single use, recovery procedures, additional bypass checks, and password-login rate limiting. Having the recovery-code plugin installed does not prove recovery has been configured, exercised, or safely documented.
+
+The installed OTP devices use throttle factors of 1 for authenticator and
+recovery-code verification. The library supplies increasing delays after failed
+verification attempts. Password authentication has no configured request limit,
+and the API throttle list is empty. General request and password-login limits
+remain release work. Sources are the
+[OTP throttling documentation](https://django-otp-official.readthedocs.io/en/stable/overview.html)
+and [Django authentication guidance](https://docs.djangoproject.com/en/5.2/topics/auth/customizing/).
 
 ## 4. CSRF and logout
 
@@ -78,7 +86,13 @@ The missing-token admin test calls the admin URL; this should not be described a
 
 The server-side database session expires eight hours from its last save. Ordinary read requests do not continually refresh that expiry, but changes to session data can. This is not an absolute eight-hour cap measured from initial login. Existing sessions may retain their previous expiry until saved; log out and back in after changing policy.
 
-Browser-close expiry creates a browser-session cookie; browser restoration behavior can preserve it. Closing a browser does not revoke the database session, and manually supplied cookies can still be accepted until server-side expiry or invalidation. Logout invalidates the corresponding session. Test expiry/revocation explicitly before claiming full lifecycle coverage.
+Browser-close expiry creates a browser-session cookie; browser restoration behavior can preserve it. Closing a browser does not revoke the database session, and manually supplied cookies can still be accepted until server-side expiry or invalidation. Logout invalidates the corresponding session.
+
+Session lifetime tests verify that the saved expiry is eight hours after login,
+ordinary admin and API reads leave it unchanged, and an expired verified session
+cannot access admin, read drafts, or create artworks. Existing tests verify
+logout revocation. Password changes, device revocation, and recovery flows need
+further coverage.
 
 CSRF tokens have no independent short server-enforced expiry timer. Cookie retention is different from token validity. Login rotates the CSRF secret; replaying a matching cookie/header pair does not by itself authenticate a user. Session expiry and permission checks remain essential.
 
@@ -104,15 +118,24 @@ Validators are attached to the model field and run through admin model forms. Di
 
 Validation limits images to 25 million pixels before structural verification. Pillow decompression-bomb warnings are locally converted to exceptions; both warnings and errors become ValidationError with a safe message. The file position is restored in finally.
 
-Tests cover the 10 MiB size boundary, genuine PNG acceptance, disguised-text rejection, the 25-million-pixel boundary, and decompression-bomb warning/error handling. Dimension and bomb tests mock Pillow rather than allocate huge files; they verify application behavior, not the correctness of Pillow internals. Unit size tests simulate the reported size; they are not ingress/body-limit tests. Unsupported real image formats, corrupt image variants, and admin upload integration still need additional coverage.
+Tests cover the 10 MiB size boundary, genuine PNG acceptance, disguised-text rejection, the 25-million-pixel boundary, and decompression-bomb warning/error handling. Dimension and bomb tests mock Pillow rather than allocate huge files; they verify application behavior, not the correctness of Pillow internals.
 
-Before deployment: add remaining negative-format/admin integration coverage, set request/upload limits at ingress, review multi-frame/resource handling, consider image re-encoding and metadata removal, and keep Pillow patched. Structural verification does not guarantee a file is harmless in every downstream context.
+[Upload integration tests](../items/tests/test_upload_security.py) exercise
+the actual admin add and change forms. Anonymous visitors, regular users,
+password-only owners, inactive owners, and verified staff without model
+permissions cannot upload or change artwork. Verified owners can upload, while
+missing CSRF tokens are rejected. Admin forms reject disguised text, truncated
+JPEG, GIF, HTML filenames, and a real multipart file over 10 MiB. Rejected
+uploads leave artwork records and stored files unchanged. API image fields are
+read-only, and image-delivery routes reject upload POSTs.
+
+Before deployment: set request/upload limits at ingress, review multi-frame/resource handling, and keep Pillow patched. Public variants are re-encoded and have EXIF metadata removed. Structural verification does not guarantee a file is harmless in every downstream context.
 
 ## 7. Authorization-aware image delivery
 
 Sources: `artwork_image` in [views](../items/views.py), [URL configuration](../config/urls.py), [image serializer](../items/serializers.py).
 
-`GET /artwork-images/<image_id>/` checks the current parent artwork's publication status. Active authenticated MFA-verified staff can access drafts; other callers are restricted to published artwork images. Missing/disallowed records and missing files return 404. `FileResponse` streams the bytes without redirecting to a raw storage URL.
+`GET` and `HEAD /artwork-images/<image_id>/` check the current parent artwork's publication status and protection checkbox. Active authenticated MFA-verified staff can access originals and drafts. Other callers can access unprotected published originals and published public variants. Protected artwork originals remain staff-only even when published. Missing/disallowed records and missing files return 404. `FileResponse` streams the bytes without redirecting to a raw storage URL.
 
 `never_cache` sets private/no-store and related anti-cache directives. `X-Content-Type-Options: nosniff` is explicitly set; SecurityMiddleware normally adds it too. This header does not replace correct content types, upload validation, or safe storage.
 
@@ -123,8 +146,9 @@ Image delivery integration and remaining limitations:
 - The duplicate `artwork_image` definition has been removed; one implementation remains.
 - `ArtworkImageSerializer.image` now reverses the protected image endpoint instead of exposing a raw storage URL.
 - Admin image inlines use a plain file-upload widget and a protected View image link rather than displaying the storage URL.
-- [Image delivery tests](../items/tests/test_image_delivery.py) verify published bytes, unpublish-to-404 at the same URL, retained MFA-verified staff access, and private/no-store headers on successful responses. Additional roles, missing files, and direct media denial still need coverage.
-- Raised Http404 exceptions bypass never_cache response processing; cache policy for error responses remains unfinished. Configure edge caching accordingly and add regression coverage.
+- [Image delivery tests](../items/tests/test_image_delivery.py) verify published bytes, protection changes, image replacement, missing files, and staff access to protected originals.
+- [Image access boundary tests](../items/tests/test_upload_security.py) exercise original, card, detail, and sharing routes with GET and HEAD across anonymous, regular, verified non-staff, password-only staff, verified staff, and inactive staff users. Successful and denied image responses have private/no-store headers. Direct storage URLs return 404, and unpublishing revokes all previously public image routes.
+- Image views return denied/missing responses through the cache decorator so those responses also carry private/no-store headers. Shared-cache behavior still needs verification on the eventual deployment.
 - Production originals must remain private. Already downloaded copies cannot be recalled, and no-store is not a guarantee against a malicious client saving bytes.
 
 ## 8. Built-in headers, rendering, and development configuration
@@ -170,12 +194,10 @@ Run `check --deploy` against the eventual production settings; a clean local sys
 
 Immediate priorities:
 
-1. Expand image-access role coverage and define cache headers for denied/missing-image responses.
-2. Test image publication transitions, role restrictions, and cache headers.
-3. Complete remaining format/admin upload tests and ingress/resource limits; application size/pixel/bomb handling is implemented.
-4. Expand regression coverage for password-only staff list visibility, verified-staff slug preview, inactive users, and the global permission default.
-5. Finish recovery, bypass, and rate-limiting work before release.
-6. Complete production settings, storage/Cloudflare origin design, dependency checks, and backup/incident procedures.
+1. Configure and verify password-login and general request limits.
+2. Finish remaining recovery, OTP replay, and authentication bypass checks.
+3. Set ingress upload/resource limits and verify the deployed image routes and cache policy.
+4. Complete production settings, private storage/Cloudflare origin design, and backup/restore procedures.
 
 The local PROJECT_CHECKLIST.md tracks the larger guided-learning plan. This document should be updated whenever controls or their supporting evidence change.
 

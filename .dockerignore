@@ -1,0 +1,14 @@
+**
+!Dockerfile
+!requirements-lock.txt
+!manage.py
+!gunicorn.conf.py
+!config/
+!config/**
+!items/
+!items/**
+!templates/
+!templates/**
+**/__pycache__/
+**/*.pyc
+items/tests/

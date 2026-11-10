@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Private R2 storage — implementation guide</title>
+<style>
+:root{color-scheme:light;--bg:#f4f3ee;--paper:#fffefa;--ink:#24352f;--muted:#59675f;--line:#dce1d8;--accent:#26684e;--tint:#eaf2ec;--warn:#fff1d7}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1040px;margin:auto;padding:56px 28px 40px}header{max-width:800px;margin-bottom:32px}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:.75rem;font-weight:700;color:var(--accent)}h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.12;letter-spacing:-.04em;margin:14px 0 20px}h2{font-size:1.3rem;letter-spacing:-.02em;margin:0 0 14px}h3{font-size:1rem;margin:0 0 6px}p{margin:0 0 14px}.lede{font-size:1.13rem;color:var(--muted)}.badge{display:inline-block;background:var(--warn);padding:5px 12px;border-radius:30px;font-size:.8rem;font-weight:650}.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:26px;margin-bottom:20px}.flow{display:flex;align-items:stretch;gap:10px;margin:20px 0}.node{flex:1;background:var(--tint);border-radius:10px;padding:14px 10px;text-align:center;font-weight:650;line-height:1.3}.node small{display:block;font-weight:400;font-size:.78rem;margin-top:7px;color:var(--muted)}.arrow{align-self:center;color:var(--accent)}.note{color:var(--muted);font-size:.9rem}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.grid>.card{margin-bottom:20px}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:.92rem}th{text-align:left;color:var(--muted);font-size:.8rem}td,th{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child,th:first-child{padding-left:0}tr:last-child td{border-bottom:0}ul,ol{padding-left:22px;margin:0}li{margin-bottom:10px}li:last-child{margin-bottom:0}.callout{border-left:4px solid #b9862d;background:var(--warn);padding:18px 22px;border-radius:0 12px 12px 0;margin:20px 0}.links{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.88rem}footer{font-size:.8rem;color:var(--muted);margin-top:28px}.files td:first-child{width:39%}@media(max-width:700px){main{padding:30px 16px}.card{padding:20px}.grid{grid-template-columns:1fr;gap:0}.flow{flex-direction:column;gap:6px}.arrow{transform:rotate(90deg)}.node{padding:12px}.files td:first-child{width:44%}td,th{padding:10px 5px}table{font-size:.84rem}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#18231f;--paper:#202e27;--ink:#e6ede5;--muted:#b0beb4;--line:#3b4b40;--accent:#99d8b4;--tint:#2b4032;--warn:#433822}}@media print{body{font-size:11px;background:white;color:#222}main{padding:0;max-width:none}.card{break-inside:avoid;border-radius:8px;padding:16px}.badge{border:1px solid #ccc}.grid{gap:12px}a{color:inherit}footer{margin-top:12px}}
+</style>
+</head>
+<body>
+<main>
+<header>
+<div class="eyebrow">Kaan Gallery · Engineering guide</div>
+<h1>Private images.<br>Controlled R2 usage.</h1>
+<p class="lede">The new storage gateway checks a shared quota before accessing Cloudflare R2. Django keeps control of who can see each image; the bucket stays private.</p>
+<span class="badge">Worker live · Media verified · Local Django connected</span>
+</header>
+<section class="card" aria-labelledby="design">
+<h2 id="design">How the system fits together</h2>
+<div class="flow" aria-label="Browser to Django to Worker to Durable Object to private R2 bucket">
+<div class="node">Browser<small>Existing image URL</small></div><span class="arrow" aria-hidden="true">→</span>
+<div class="node">Django<small>Publication &amp; image protection</small></div><span class="arrow" aria-hidden="true">→</span>
+<div class="node">Worker<small>Private authentication</small></div><span class="arrow" aria-hidden="true">→</span>
+<div class="node">Durable Object<small>Quota &amp; object ledger</small></div><span class="arrow" aria-hidden="true">→</span>
+<div class="node">R2<small>kaan-gallery-media</small></div>
+</div>
+<p>Django sends a server-only secret to the Worker. A single SQLite-backed Durable Object processes quota changes in order, so simultaneous requests cannot spend the same remaining allowance. It reserves usage <strong>before</strong> making an R2 call.</p>
+<p class="note">The browser receives bytes through Django. It receives no storage secret or direct bucket URL. This workstation uses a private, Git-ignored connection file. Other checkouts use local filesystem storage unless configured; deployment environment settings take precedence.</p>
+</section>
+<section class="card" aria-labelledby="limits">
+<h2 id="limits">Warn at 90%, stop at 95%</h2>
+<table><thead><tr><th scope="col">Metric</th><th scope="col">Warning</th><th scope="col">Gateway cutoff</th></tr></thead><tbody>
+<tr><td>Class A · writes and lists</td><td>900,000 / billing period</td><td>950,000 / billing period</td></tr>
+<tr><td>Class B · reads</td><td>9,000,000 / billing period</td><td>9,500,000 / billing period</td></tr>
+<tr><td>Stored data</td><td>9 GB</td><td>9.5 GB</td></tr>
+</tbody></table>
+<p class="note">GB uses decimal bytes. Each object reserves an extra 8 KiB for metadata. Files are limited to 10 MiB. The current date-only setup stops conservatively at December 10, 00:00 UTC. This is not a confirmed reset hour; automatic quota resets are disabled.</p>
+</section>
+<div class="grid">
+<section class="card" aria-labelledby="requests">
+<h2 id="requests">What happens on a request</h2>
+<ol>
+<li><strong>Authorize.</strong> Django checks visibility first. The Worker then checks its storage secret. Management actions require a separate control secret.</li>
+<li><strong>Reserve.</strong> A read reserves a Class B operation; an upload reserves Class A and bytes. Metadata requests use the ledger without an R2 read.</li>
+<li><strong>Access R2.</strong> Uploads create new keys only. Unexpected existing objects lock access for investigation.</li>
+<li><strong>Return safely.</strong> Unavailable storage becomes a generic Django <code>503</code> with retry guidance. Responses use private/no-store caching.</li>
+</ol>
+</section>
+<section class="card" aria-labelledby="reconcile">
+<h2 id="reconcile">Checks, alerts and recovery</h2>
+<ul>
+<li>Every 15 minutes, a scheduled check reconciles <strong>account-wide</strong> R2 analytics and retries pending alerts.</li>
+<li>Failed analytics, snapshots older than 30 minutes, exhausted budgets or a manual lock stop billable access. Authorized deletes remain available.</li>
+<li>Resend email or an optional HTTPS webhook receives durable warning events. Failed deliveries retry; stable IDs help reduce duplicates.</li>
+<li>With the renewal hour unconfirmed, billing rollover retains all counters and stops billable access for review. A review alert is queued; manual unlock cannot bypass the hold.</li>
+</ul>
+</section>
+</div>
+<section class="card" aria-labelledby="code">
+<h2 id="code">Where to read the code</h2>
+<p class="note">These links open files in this repository, relative to this HTML page.</p>
+<table class="files"><thead><tr><th scope="col">File</th><th scope="col">Responsibility</th></tr></thead><tbody>
+<tr><td><a href="../cloudflare/r2-gateway/src/index.js"><code>gateway/src/index.js</code></a></td><td>Worker routes, authentication, <code>QuotaGate</code>, persistent reservations, analytics and alert delivery.</td></tr>
+<tr><td><a href="../cloudflare/r2-gateway/src/policy.js"><code>gateway/src/policy.js</code></a></td><td>Limit validation, billing periods, object keys and analytics parsing.</td></tr>
+<tr><td><a href="../cloudflare/r2-gateway/wrangler.jsonc"><code>gateway/wrangler.jsonc</code></a></td><td>Bucket binding, Durable Object migration, schedule and configurable thresholds.</td></tr>
+<tr><td><a href="../items/storage_gateway.py"><code>items/storage_gateway.py</code></a></td><td><code>QuotaGatewayStorage</code>: Django reads, writes, metadata and deletes over authenticated HTTPS; outage middleware.</td></tr>
+<tr><td><a href="../config/settings.py"><code>config/settings.py</code></a> · <a href="../items/views.py"><code>items/views.py</code></a></td><td>Optional storage activation; existing image authorization and efficient HEAD responses.</td></tr>
+<tr><td><a href="../cloudflare/r2-gateway/tests/gateway.test.mjs"><code>gateway.test.mjs</code></a> · <a href="../cloudflare/r2-gateway/tests/policy.test.mjs"><code>policy.test.mjs</code></a></td><td>Local Cloudflare runtime tests: concurrency, limits, persistence, analytics, alerts and billing rollover.</td></tr>
+<tr><td><a href="../items/management/commands/import_artwork_storage.py"><code>import_artwork_storage.py</code></a> · <a href="../items/tests/test_storage_import.py"><code>test_storage_import.py</code></a></td><td>Offline inventory and resumable exact-path uploads with SHA-256 verification; preserves local files and database paths.</td></tr>
+<tr><td><a href="../items/tests/test_storage_gateway.py"><code>test_storage_gateway.py</code></a></td><td>Django adapter, errors, authentication, redirects and upload behavior.</td></tr>
+<tr><td><a href="../cloudflare/r2-gateway/README.md"><code>gateway/README.md</code></a></td><td>Full setup commands, control endpoints and operational details.</td></tr>
+</tbody></table>
+</section>
+<div class="grid">
+<section class="card" aria-labelledby="verification">
+<h2 id="verification">Verified locally</h2>
+<p><strong>21 Worker tests</strong> and <strong>160 backend tests</strong> passed. Worker tests use an isolated bucket and Durable Object with mocked analytics and webhooks.</p>
+<p>Backend tests also passed with dummy gateway settings, confirming test fixtures stay isolated from live storage. Django checks, migration drift checks and a Wrangler deployment dry run passed.</p>
+<p class="note">The deployment dry run passed before the first live deployment. Live initialization, analytics reconciliation and control-route authentication checks also passed. A temporary image also passed upload, metadata, byte-for-byte read, overwrite rejection and deletion checks. All 124 referenced media files (79.1 MB) were then imported and verified by SHA-256. Eight live Django image checks passed. Local Django activation is complete; production backend hosting remains pending.</p>
+</section>
+<section class="card" aria-labelledby="launch">
+<h2 id="launch">Before this protects production</h2>
+<ol>
+<li>Verify private bucket access and the Workers plan; disable other storage access paths.</li>
+<li>Set the account ID, exact billing anchor, separate secrets, analytics token and alert webhook.</li>
+<li>Deploy, initialize the empty bucket, then verify live analytics and an actual delivered alert.</li>
+<li>Media import and sample Django image checks are complete. Local Django now uses the gateway through a private, Git-ignored connection file. Configure production hosting separately.</li>
+</ol>
+</section>
+</div>
+<aside class="callout" aria-label="Practical limits">
+<h3>A conservative cutoff, not a billing guarantee</h3>
+<p>Cloudflare analytics can lag. Other credentials, public URLs or other workloads can bypass reservations. Stored data still accrues usage while requests are stopped. Failed operations retain reservations and may stop service early; storage analytics can also remain high after deletion.</p>
+<p style="margin-bottom:0">Workers and Durable Objects have their own allowances. Bot protection and public-route rate limits remain deployment work. Alerts are not live until a notification destination is configured and tested.</p>
+</aside>
+<section class="card" aria-labelledby="references">
+<h2 id="references">Cloudflare references</h2>
+<div class="links">
+<a href="https://developers.cloudflare.com/r2/pricing/">R2 pricing &amp; operation classes</a>
+<a href="https://developers.cloudflare.com/r2/api/workers/workers-api-usage/">Worker bucket bindings</a>
+<a href="https://developers.cloudflare.com/durable-objects/">Durable Objects</a>
+<a href="https://developers.cloudflare.com/r2/observability/analytics/">R2 analytics</a>
+<a href="https://developers.cloudflare.com/workers/platform/limits/">Workers limits</a>
+</div>
+</section>
+<footer>Implementation snapshot · 10 November 2026 · No credentials are included in this guide.</footer>
+</main>
+</body>
+</html>

@@ -2,6 +2,8 @@ from django.core.exceptions import ValidationError
 from PIL import Image, UnidentifiedImageError
 import warnings
 
+MAX_IMAGE_PIXELS = 25_000_000
+
 def validate_image_size(file):
     maximum_size = 10 * 1024 * 1024
 
@@ -20,9 +22,7 @@ def validate_image_format(file):
                     raise ValidationError(
                         "Supported image formats: JPEG, PNG, WebP."
                     )
-                maximum_pixels = 25_000_000
-
-                if image.width * image.height > maximum_pixels:
+                if image.width * image.height > MAX_IMAGE_PIXELS:
                     raise ValidationError(
                         "Image must contain no more than 25 million pixels."
                     )

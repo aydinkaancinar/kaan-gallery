@@ -6,6 +6,12 @@ from rest_framework.test import APIClient, APITestCase
 from ..models import Item
 from .helpers import login_with_verified_session
 from django_otp.oath import totp
+from datetime import timedelta
+from django.conf import settings
+from django.contrib.sessions.models import Session
+from django.utils import timezone
+from .helpers import create_item
+from django.test import RequestFactory
 
 User = get_user_model()
 
@@ -14,6 +20,42 @@ User = get_user_model()
 # TODO: Before deployment: incorrect numeric OTP and replay rejection,
 # recovery-code single use, password-only admin/API bypass checks,
 # and login rate-limiting enforcement. These remain release requirements.
+
+
+class SessionLifetimeTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="session-lifetime-admin", is_staff=True)
+        self.before_login = timezone.now()
+        login_with_verified_session(self.client, self.user)
+        self.after_login = timezone.now()
+        self.session_key = self.client.cookies[settings.SESSION_COOKIE_NAME].value
+
+    def test_session_expires_in_eight_hours_and_reads_do_not_extend_it(self):
+        session = Session.objects.get(session_key=self.session_key)
+        self.assertEqual(settings.SESSION_COOKIE_AGE, 8 * 60 * 60)
+        self.assertGreaterEqual(session.expire_date, self.before_login + timedelta(hours=8))
+        self.assertLessEqual(session.expire_date, self.after_login + timedelta(hours=8))
+        self.assertTrue(self.client.session.get_expire_at_browser_close())
+        original_expiry = session.expire_date
+        self.assertEqual(self.client.get("/admin/").status_code, 200)
+        self.assertEqual(self.client.get("/items/").status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.expire_date, original_expiry)
+
+    def test_expired_verified_session_cannot_read_drafts_or_write(self):
+        draft = create_item()
+        url = reverse("operate-item", kwargs={"item_id": draft.pk})
+        self.assertEqual(self.client.get(url).status_code, 200)
+        Session.objects.filter(session_key=self.session_key).update(
+            expire_date=timezone.now() - timedelta(seconds=1),
+        )
+        self.assertEqual(self.client.get("/admin/").status_code, 302)
+        self.assertEqual(self.client.get(url).status_code, 404)
+        response = self.client.post(
+            "/items/", {"name": "Expired session upload", "price": "50.00"}, format="json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(Item.objects.filter(name="Expired session upload").exists())
 
 
 class SessionSecurityTests(APITestCase):
@@ -27,6 +69,7 @@ class SessionSecurityTests(APITestCase):
         client = APIClient(enforce_csrf_checks=True)
 
         logged_in = client.login(
+            request=RequestFactory().post(reverse("two_factor:login")),
             username="session-admin",
             password="test-password-only",
         )
@@ -149,6 +192,7 @@ class SessionSecurityTests(APITestCase):
 
         client = APIClient(enforce_csrf_checks=True)
         self.assertTrue(client.login(
+            request=RequestFactory().post(reverse("two_factor:login")),
             username="password-only-admin",
             password="test-password-only",
         ))
@@ -182,6 +226,7 @@ class SessionSecurityTests(APITestCase):
 
         client = APIClient(enforce_csrf_checks=True)
         self.assertTrue(client.login(
+            request=RequestFactory().post(reverse("two_factor:login")),
             username="verified-admin",
             password="test-password-only",
         ))

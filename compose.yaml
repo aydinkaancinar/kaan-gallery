@@ -1,0 +1,20 @@
+services:
+  backend:
+    build: .
+    image: kaan-gallery-backend:local
+    env_file:
+      - path: .env.docker
+        format: raw
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings_container_local
+      DJANGO_TRUST_PROXY_HEADERS: "false"
+      PORT: "8000"
+    ports:
+      - "127.0.0.1:8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz/', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3

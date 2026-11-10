@@ -1,67 +1,22 @@
-"""Local learning settings. Use environment-specific settings for deployment."""
-from pathlib import Path
+"""Local SQLite settings with optional private R2 connection."""
+from .settings_base import *  # noqa: F403
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-SECRET_KEY = "local-practice-only-do-not-use-in-production"
-DEBUG = True
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
-INSTALLED_APPS = [
-    "django.contrib.admin", "django.contrib.auth", "django.contrib.contenttypes",
-    "django.contrib.sessions", "django.contrib.messages", "django.contrib.staticfiles",
-    "rest_framework", "items.apps.ItemsConfig",
-    "django_otp",
-    "django_otp.plugins.otp_static",
-    "django_otp.plugins.otp_totp",
-    "two_factor",
-]
-MIDDLEWARE = [
-    "django.middleware.security.SecurityMiddleware",
-    "django.contrib.sessions.middleware.SessionMiddleware",
-    "django.middleware.common.CommonMiddleware",
-    "django.middleware.csrf.CsrfViewMiddleware",
-    "django.contrib.messages.middleware.MessageMiddleware",
-    "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "django.contrib.auth.middleware.AuthenticationMiddleware",
-    "django_otp.middleware.OTPMiddleware",
-]
-ROOT_URLCONF = "config.urls"
-TEMPLATES = [{
-    "BACKEND": "django.template.backends.django.DjangoTemplates",
-    "DIRS": [BASE_DIR / "templates"], "APP_DIRS": True,
-    "OPTIONS": {"context_processors": [
-        "django.template.context_processors.request",
-        "django.contrib.auth.context_processors.auth",
-        "django.contrib.messages.context_processors.messages",
-    ]},
-}]
-WSGI_APPLICATION = "config.wsgi.application"
-DATABASES = {"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": BASE_DIR / "db.sqlite3"}}
-LANGUAGE_CODE = "en-us"
-TIME_ZONE = "UTC"
-USE_I18N = True
-USE_TZ = True
-STATIC_URL = "static/"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-# Public reads; writes require active, MFA-verified staff.
-REST_FRAMEWORK = {
-    "DEFAULT_PERMISSION_CLASSES": [
-        "items.permissions.IsAdminOrReadOnly",
-    ],
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 9,
-    "DEFAULT_FILTER_BACKENDS": ["rest_framework.filters.SearchFilter", "rest_framework.filters.OrderingFilter"],
-    "TEST_REQUEST_DEFAULT_FORMAT": "json",
-    "DEFAULT_AUTHENTICATION_CLASSES": [
-    "rest_framework.authentication.SessionAuthentication",
-],
-}
-LOGIN_URL = "two_factor:login"
-LOGIN_REDIRECT_URL = "/admin/"
-
-# Browser-session cookie; server-side expiry is eight hours from the last save.
-SESSION_COOKIE_AGE = 8 * 60 * 60
-SESSION_EXPIRE_AT_BROWSER_CLOSE = True
-SESSION_SAVE_EVERY_REQUEST = False
-
-MEDIA_URL = "/media/"
-MEDIA_ROOT = BASE_DIR / "media"
+# Optional private local connection file; deployment environment takes precedence.
+# This file contains only the Django storage credential, never management secrets.
+_local_storage_path = BASE_DIR / ".artwork-storage.json"
+_local_storage = {}
+if not os.environ.get("ARTWORK_GATEWAY_URL") and _local_storage_path.exists():
+    _local_storage = json.loads(_local_storage_path.read_text())
+_gateway_url = os.environ.get("ARTWORK_GATEWAY_URL") or _local_storage.get("url")
+_gateway_token = os.environ.get("ARTWORK_GATEWAY_TOKEN") or _local_storage.get("token", "")
+if _gateway_url:
+    STORAGES = {
+        "default": {
+            "BACKEND": "items.storage_gateway.QuotaGatewayStorage",
+            "OPTIONS": {
+                "base_url": _gateway_url,
+                "token": _gateway_token,
+            },
+        },
+        "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+    }

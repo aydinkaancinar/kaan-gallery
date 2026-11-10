@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><title>PostgreSQL testing — Kaan Gallery walkthrough</title>
+<style>
+:root{color-scheme:light;--bg:#f4f3ee;--paper:#fffefa;--ink:#24352f;--muted:#59675f;--line:#dce1d8;--accent:#26684e;--tint:#eaf2ec;--warn:#fff1d7}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1040px;margin:auto;padding:56px 28px 40px}header{max-width:800px;margin-bottom:32px}.eyebrow{text-transform:uppercase;letter-spacing:.13em;font-size:.75rem;font-weight:700;color:var(--accent)}h1{font-size:clamp(2rem,5vw,3.3rem);line-height:1.12;letter-spacing:-.04em;margin:14px 0 20px}h2{font-size:1.3rem;letter-spacing:-.02em;margin:0 0 14px}h3{font-size:1rem;margin:0 0 6px}p{margin:0 0 14px}.lede{font-size:1.13rem;color:var(--muted)}.badge{display:inline-block;background:var(--warn);padding:5px 12px;border-radius:30px;font-size:.8rem;font-weight:650}.card{background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:26px;margin-bottom:20px}.flow{display:flex;align-items:stretch;gap:10px;margin:20px 0}.node{flex:1;background:var(--tint);border-radius:10px;padding:14px 10px;text-align:center;font-weight:650;line-height:1.3}.node small{display:block;font-weight:400;font-size:.78rem;margin-top:7px;color:var(--muted)}.arrow{align-self:center;color:var(--accent)}.note{color:var(--muted);font-size:.9rem}.grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.grid>.card{margin-bottom:20px}a{color:var(--accent);text-underline-offset:3px}a:hover{text-decoration-thickness:2px}code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.85em;overflow-wrap:anywhere}table{border-collapse:collapse;width:100%;font-size:.92rem}th{text-align:left;color:var(--muted);font-size:.8rem}td,th{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top}td:first-child,th:first-child{padding-left:0}tr:last-child td{border-bottom:0}ul,ol{padding-left:22px;margin:0}li{margin-bottom:10px}li:last-child{margin-bottom:0}.callout{border-left:4px solid #b9862d;background:var(--warn);padding:18px 22px;border-radius:0 12px 12px 0;margin:20px 0}.links{display:flex;flex-wrap:wrap;gap:8px 22px;font-size:.88rem}footer{font-size:.8rem;color:var(--muted);margin-top:28px}.files td:first-child{width:39%}@media(max-width:700px){main{padding:30px 16px}.card{padding:20px}.grid{grid-template-columns:1fr;gap:0}.flow{flex-direction:column;gap:6px}.arrow{transform:rotate(90deg)}.node{padding:12px}.files td:first-child{width:44%}td,th{padding:10px 5px}table{font-size:.84rem}}@media(prefers-color-scheme:dark){:root{color-scheme:dark;--bg:#18231f;--paper:#202e27;--ink:#e6ede5;--muted:#b0beb4;--line:#3b4b40;--accent:#99d8b4;--tint:#2b4032;--warn:#433822}}@media print{body{font-size:11px;background:white;color:#222}main{padding:0;max-width:none}.card{break-inside:avoid;border-radius:8px;padding:16px}.badge{border:1px solid #ccc}.grid{gap:12px}a{color:inherit}footer{margin-top:12px}}
+pre{background:var(--tint);padding:18px;border-radius:10px;overflow-x:auto;line-height:1.55;font-size:.85rem;white-space:pre}pre code{font-size:inherit;overflow-wrap:normal}.step{display:inline-block;color:var(--accent);font-weight:700;font-size:.75rem;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}.expect{border-left:3px solid var(--accent);padding-left:14px;color:var(--muted);font-size:.92rem}.toc{display:flex;flex-wrap:wrap;gap:8px 20px;margin:24px 0}details{margin-top:14px}summary{cursor:pointer;font-weight:650}details p{margin-top:12px}@media print{pre{white-space:pre-wrap;overflow-wrap:anywhere}.card{break-inside:auto}}
+</style></head>
+<body><main>
+<header><div class="eyebrow">Kaan Gallery · Follow-along guide</div>
+<h1>Test PostgreSQL.<br>Keep your gallery running.</h1>
+<p class="lede">Create an isolated Neon branch, run Django’s backend tests against it, then return your workspace to the main branch.</p>
+<span class="badge">Verified · 160 PostgreSQL tests pass · 160 SQLite tests pass</span>
+<nav class="toc" aria-label="Guide sections"><a href="#model">Understand the setup</a><a href="#branch">Create a branch</a><a href="#tests">Run the checks</a><a href="#finish">Finish up</a></nav></header>
+<section class="card" id="model"><h2>What is isolated?</h2>
+<div class="flow"><div class="node">SQLite<small>Your running local gallery</small></div><span class="arrow" aria-hidden="true">·</span><div class="node">Neon main<small>Initialized PostgreSQL schema</small></div><span class="arrow" aria-hidden="true">→</span><div class="node">dev-postgres-tests<small>Separate branch for this work</small></div></div>
+<p>A Neon branch is a database copy, separate from a Git branch. Changes made in the child do not update its parent. Django then creates its own temporary test database <em>inside that child branch</em>, runs the tests, and removes the test database afterward.</p>
+<p>Your usual <code>manage.py runserver</code> continues to use SQLite. PostgreSQL is selected only when a command explicitly chooses <code>config.settings_postgres</code>. Images stay in R2; automated tests use isolated media fixtures.</p>
+<table><thead><tr><th>Already verified</th><th>What you can reproduce</th></tr></thead><tbody><tr><td>Neon project, encrypted connection, main schema migrations, 160 SQLite tests and 160 PostgreSQL tests</td><td>Migrations and the same backend suite against PostgreSQL on a development branch</td></tr></tbody></table>
+</section>
+<section class="card"><span class="step">01 · Prepare</span><h2>Open a new terminal</h2>
+<p>Keep your existing Django and frontend terminals running. In the new terminal:</p>
+<pre><code>cd /Users/kaancinar/Desktop/python-projects/kaan-gallery
+export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
+set -o pipefail
+neon --version
+./.venv/bin/python -m pip check</code></pre>
+<p class="expect">Expected: Neon prints a version and pip reports no broken requirements. If Neon needs authentication, run <code>neon login</code> and complete browser sign-in.</p>
+<p>The project is <a href="https://console.neon.tech/app/projects/shiny-smoke-23111194/">kaan-gallery</a>, in AWS US East (N. Virginia). Connections are saved in ignored <code>.env.local</code>; project selection is saved in ignored <code>.neon</code>. Neither should be pasted into chat.</p>
+</section>
+<section class="card" id="branch"><span class="step">02 · Isolate</span><h2>Create and select the development branch</h2>
+<p>Create it explicitly from <code>main</code>, without printing connection credentials:</p>
+<pre><code>neon branches create \
+  --project-id shiny-smoke-23111194 \
+  --parent main \
+  --name dev-postgres-tests \
+  --no-secrets</code></pre>
+<p>If Neon says this branch already exists, reuse it with the next command; do not reset or delete it.</p>
+<pre><code>neon checkout dev-postgres-tests \
+  --project-id shiny-smoke-23111194
+chmod 600 .env.local</code></pre>
+<p class="expect">Expected: Neon reports that <code>dev-postgres-tests</code> is selected and pulls its connection variables into <code>.env.local</code>. This changes the PostgreSQL connection file, not your code or SQLite database.</p>
+<p>In the Neon console, open <strong>Branches</strong> and confirm that <code>dev-postgres-tests</code> appears under <code>main</code>.</p>
+</section>
+<section class="card" id="tests"><span class="step">03 · Verify</span><h2>Run checks, migrations and tests</h2>
+<p>Paste this whole block into the same terminal. Full output is displayed and saved to <code>/tmp/kaan-postgres-tests.log</code>. It reads the branch’s direct connection privately, confirms the branch name, checks TLS, and runs Django. It never prints a connection string.</p>
+<pre><code>./.venv/bin/python - &lt;&lt;'PY' 2&gt;&amp;1 | tee /tmp/kaan-postgres-tests.log
+import json
+import os
+from pathlib import Path
+from dotenv import dotenv_values
+
+link = json.loads(Path(".neon").read_text())
+assert link.get("projectId") == "shiny-smoke-23111194", "Wrong project: stop."
+assert link.get("branch") == "dev-postgres-tests", "Wrong branch: stop."
+values = dotenv_values(".env.local")
+assert values.get("NEON_BRANCH") == "dev-postgres-tests", "Stale env file: stop."
+url = values.get("DATABASE_URL_UNPOOLED")
+assert url, "Direct database connection is missing: stop."
+os.environ["DATABASE_URL"] = url
+os.environ["DJANGO_SETTINGS_MODULE"] = "config.settings_postgres"
+
+import django
+django.setup()
+from django.db import connection
+from django.core.management import call_command
+
+with connection.cursor() as cursor:
+    cursor.execute("SELECT 1")
+    assert cursor.fetchone()[0] == 1
+    assert connection.connection.pgconn.ssl_in_use, "TLS is required."
+connection.close()
+print("Development branch connected; TLS verified.")
+call_command("check")
+call_command("migrate", interactive=False)
+call_command("test", interactive=True, verbosity=1)
+PY</code></pre>
+<p class="expect">Expected: system checks pass, migrations apply or report none pending, and the suite ends with <code>Ran 160 tests</code> and <code>OK</code>, followed by test database cleanup. The count may increase as we add tests.</p>
+<p>The block overrides the database URL only within this Python process. It does not change your saved pooled URL or switch the running app. The first Neon connection may take longer if compute has suspended; PostgreSQL tests also incur network round trips.</p>
+<details><summary>If something fails</summary><p><strong>Wrong branch / stale env:</strong> stop and repeat the checkout step. Do not bypass the assertions. <strong>Permission denied creating a database:</strong> verify the direct URL uses the branch’s owner role. <strong>Existing test database prompt:</strong> answer “no” and investigate before authorizing deletion. <strong>FAIL / ERROR:</strong> keep the branch and share the failing test name and sanitized traceback from <code>/tmp/kaan-postgres-tests.log</code>, with credentials removed. Do not repeatedly recreate the project.</p></details>
+</section>
+<section class="card"><h2>Why the first PostgreSQL run failed</h2><p>The image tests manually closed HTTP responses, which fired Django’s normal request-finished cleanup inside a test transaction. That closed PostgreSQL’s connection, causing later requests to report <code>OperationalError: the connection is closed</code>. SQLite’s in-memory test connection concealed the problem.</p><p>The test-only <a href="../items/tests/helpers.py"><code>closing_response</code> helper now closes responses using the same signal handling as Django’s test client. It still releases image files. Production connection handling, test assertions and image authorization remain unchanged.</p><p><strong>Verified after the fix:</strong> all 160 tests passed on PostgreSQL (147.8 seconds) and SQLite (8.9 seconds). The PostgreSQL test database was removed normally. The development branch remains selected so you can follow the return-to-main step when ready.</p></section>
+<section class="card" id="finish"><span class="step">04 · Return</span><h2>Restore the workspace’s main connection</h2>
+<p>After saving the test result:</p>
+<pre><code>neon checkout main --project-id shiny-smoke-23111194
+chmod 600 .env.local
+./.venv/bin/python manage.py check</code></pre>
+<p class="expect">Expected: Neon selects <code>main</code>, refreshes its connection file, and the ordinary Django check passes using SQLite.</p>
+<p>You can keep the development branch while investigating results. Once it is no longer needed, delete only <code>dev-postgres-tests</code> in the Neon console. Branches and their compute/storage consume your Neon allowances; do not leave unnecessary branches indefinitely.</p>
+</section>
+<aside class="callout"><h3>What this does not deploy</h3><p style="margin-bottom:0">This does not transfer SQLite records, switch your gallery to PostgreSQL, configure Render, or change <code>kaancinar.com</code>. The PostgreSQL settings still inherit local DEBUG/security defaults. After these tests pass, the next work is production settings and Docker, followed by a separately verified data transfer.</p></aside>
+<section class="card"><h2>Code and references</h2><table><tbody>
+<tr><td><a href="../config/settings_postgres.py"><code>config/settings_postgres.py</code></a></td><td>Opt-in PostgreSQL connection, TLS requirement and pooling settings</td></tr>
+<tr><td><a href="../config/settings.py"><code>config/settings.py</code></a></td><td>Normal local SQLite and R2 configuration</td></tr>
+<tr><td><a href="../items/tests/"><code>items/tests/</code></a> · <a href="../items/tests/helpers.py"><code>helpers.py</code></a></td><td>Backend tests and isolated storage fixtures</td></tr>
+<tr><td><a href="../requirements.txt"><code>requirements.txt</code></a> · <a href="NEON_SETUP.md">Neon setup notes</a></td><td>PostgreSQL dependencies and project setup</td></tr>
+</tbody></table><div class="links" style="margin-top:18px"><a href="https://neon.com/docs/introduction/branching">Neon branching</a><a href="https://neon.com/docs/guides/django">Neon + Django</a><a href="https://docs.djangoproject.com/en/5.2/topics/testing/overview/#the-test-database">Django test databases</a></div></section>
+<footer>10 November 2026 · Commands checked against installed Neon CLI 9.3.2 · No secrets included</footer>
+</main></body></html>

@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 db.sqlite3
 .env
+.artwork-storage.json
+.backups/
 
 # Local secrets, databases, and uploaded originals
 .env.*
@@ -14,3 +16,6 @@ media/
 node_modules/
 .next/
 PROJECT_CHECKLIST.md
+.neon
+
+staticfiles/

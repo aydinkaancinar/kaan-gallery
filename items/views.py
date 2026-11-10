@@ -3,14 +3,16 @@ from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 from rest_framework import status
 from .models import Item, Artist, ArtworkImage, Category
-from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer, PublicItemSerializer
+from .serializers import ItemSerializer, ItemFilterSerializer, ArtistSerializer, PublicItemSerializer, image_variant_url
 from django.db.models import F, Q
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import permission_classes
-from django.http import FileResponse, Http404
+from django.http import FileResponse, HttpResponse, HttpResponseNotFound
+import mimetypes
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_safe
 from .permissions import IsAdminOrReadOnly, is_verified_staff
+from .image_variants import VARIANT_TYPES, variant_path
 import re
 from rest_framework.exceptions import PermissionDenied
 
@@ -264,26 +266,54 @@ def artwork_detail(request, slug):
     return Response(serializer.data)
 
 @never_cache
-@require_GET
-def artwork_image(request, image_id):
+@require_safe
+def artwork_image(request, image_id, variant=None):
+    if variant is not None and variant not in VARIANT_TYPES:
+        return HttpResponseNotFound()
+
     images = ArtworkImage.objects.select_related("item")
 
     if not is_verified_staff(request.user):
         images = images.filter(item__status=Item.Status.PUBLISHED)
 
-    artwork_image = get_object_or_404(images, pk=image_id)
+    artwork_image = images.filter(pk=image_id).first()
 
-    if not artwork_image.image:
-        raise Http404("Image not found.")
+    if artwork_image is None or not artwork_image.image:
+        return HttpResponseNotFound()
 
+    protected = artwork_image.item.protect_images
+    if variant is None and protected and not is_verified_staff(request.user):
+        return HttpResponseNotFound()
+
+    image = artwork_image.image
+    path = variant_path(image.name, variant, protected) if variant else image.name
     try:
-        file = artwork_image.image.open("rb")
+        if request.method == "HEAD":
+            response = HttpResponse(content_type=VARIANT_TYPES.get(variant) or mimetypes.guess_type(path)[0])
+            response["Content-Length"] = str(image.storage.size(path))
+        else:
+            file = image.storage.open(path, "rb")
+            response = FileResponse(file, filename=path, content_type=VARIANT_TYPES.get(variant))
     except FileNotFoundError:
-        raise Http404("Image not found.")
+        return HttpResponseNotFound()
 
-    response = FileResponse(file)
     response["X-Content-Type-Options"] = "nosniff"
+    if variant is None:
+        response["X-Robots-Tag"] = "noindex"
     return response
+
+
+@api_view(["GET"])
+@permission_classes([IsAdminOrReadOnly])
+def artwork_index(request):
+    artworks = Item.objects.filter(status=Item.Status.PUBLISHED).prefetch_related("images")
+    return Response([
+        {
+            "slug": artwork.slug,
+            "images": [image_variant_url(image.pk, "detail") for image in artwork.images.all()],
+        }
+        for artwork in artworks
+    ])
 
 @api_view(["GET"])
 @permission_classes([IsAdminOrReadOnly])
