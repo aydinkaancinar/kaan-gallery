@@ -1,8 +1,8 @@
 # Kaan Gallery
 
-A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend and Next.js frontend run locally, with a responsive gallery based on approved light/dark mockups.
+A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend runs on Render, and the Next.js frontend is live at [arts.kaancinar.com](https://arts.kaancinar.com).
 
-**Status: local development, not production-ready.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Production infrastructure and remaining security work are not deployed.
+**Status: public deployment, release hardening in progress.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Monitoring, backups/restore verification, bot protection, and broader browser checks remain.
 
 ## Current features
 

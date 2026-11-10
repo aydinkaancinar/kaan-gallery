@@ -142,5 +142,6 @@ Dependencies are locked in `package-lock.json`. Audit results are documented in
 the root README; do not apply forced dependency upgrades or unsupported major
 version overrides without review.
 
-Nothing is deployed. Production settings, persistent private storage, backups,
-rate limiting, and the remaining security checks are required before launch.
+The frontend is live at [arts.kaancinar.com](https://arts.kaancinar.com). See
+[the Vercel deployment record](../docs/VERCEL_FRONTEND_DEPLOYMENT.md). Monitoring,
+backups, bot protection, and remaining security checks still need work.
