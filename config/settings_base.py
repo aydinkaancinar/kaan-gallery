@@ -33,6 +33,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django_otp.middleware.OTPMiddleware",
     "axes.middleware.AxesMiddleware",
+    "items.public_read_limit.PublicReadLimitMiddleware",
     "items.storage_gateway.StorageUnavailableMiddleware",
 ]
 ROOT_URLCONF = "config.urls"
@@ -66,6 +67,8 @@ REST_FRAMEWORK = {
     "rest_framework.authentication.SessionAuthentication",
 ],
 }
+PUBLIC_READ_LIMIT_ENABLED = False
+PUBLIC_READ_LIMIT_TRUST_XFF = False
 LOGIN_URL = "two_factor:login"
 LOGIN_REDIRECT_URL = "/admin/"
 

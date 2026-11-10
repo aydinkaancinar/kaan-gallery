@@ -53,6 +53,17 @@ STORAGES = {
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MIDDLEWARE = [MIDDLEWARE[0], 'whitenoise.middleware.WhiteNoiseMiddleware', *MIDDLEWARE[1:]]
+PUBLIC_READ_LIMIT_ENABLED = True
+# Render's ingress places the real client first in X-Forwarded-For.
+PUBLIC_READ_LIMIT_TRUST_XFF = True
+# Keep one-minute client counters from evicting the shared total too early.
+# Render Free currently runs one Gunicorn process; use a shared cache before scaling.
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'OPTIONS': {'MAX_ENTRIES': 20000},
+    },
+}
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 SESSION_COOKIE_HTTPONLY = True
