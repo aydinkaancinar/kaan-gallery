@@ -30,7 +30,7 @@ indexing. See [site configuration](../frontend/lib/site.ts),
 ## Verified on 10 November 2026
 
 - Lint, 12 frontend tests, eight Chromium journeys, and a production build passed.
-- Public HTTPS returned 200 for `/`, `/clay-studio`, an artwork page,
+- Before firewall activation, public HTTPS returned 200 for `/`, `/clay-studio`, an artwork page,
   `/sitemap.xml`, `/robots.txt`, and a WebP card image.
 - The public pages emitted canonical URLs on `arts.kaancinar.com`.
 
@@ -47,4 +47,18 @@ The Render backend is on the Free plan and can sleep when idle, causing a slow
 first gallery load. Future database migrations must be applied separately;
 neither the frontend nor Render's image build runs them. Before relying on this
 as a complete public release, finish monitoring, backups/restore verification,
-bot protection, and cross-browser checks.
+backend request controls, and cross-browser checks.
+
+## Vercel firewall
+
+The `kaan-gallery-arts` project has Bot Protection in **Challenge** mode. A
+custom rule named **Limit gallery image bursts** matches paths beginning with
+`/artwork-images/` and allows up to 120 requests per 60-second fixed window per
+IP; excess requests receive a rate-limit response. Both changes were published
+on 10 November 2026 after approval. Vercel reported no remaining draft changes.
+
+Automated HTTP probes now receive Vercel's challenge response, so those probes
+cannot confirm the visitor experience. Check the site in a regular browser and
+watch Firewall activity for false positives. The Vercel firewall applies to
+the frontend project; direct requests to the Render backend need separate
+protection.
