@@ -67,10 +67,13 @@ export default function PrivacyPage() {
           Some infrastructure is hosted in the United States, including
           services in Northern Virginia. The providers above may process
           requests in other locations too. I keep correspondence for as long
-          as needed to respond or maintain a relevant record. Provider logs,
-          security records, and backups have their own retention periods. You
-          can ask me about a particular record or request its deletion where
-          applicable.
+          as needed to respond or maintain a relevant record. Hosting and
+          security providers set retention periods for their logs and backups.
+          I cannot directly erase every individual entry in those systems.
+          If you contact me about a record, I will review information I
+          control, explain what I can do, and contact a provider when a request
+          needs its help. Some records may remain until the provider’s
+          retention period ends or a legal requirement expires.
         </p>
 
         <h2>Links and your choices</h2>
