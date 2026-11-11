@@ -1,4 +1,4 @@
-# Kaan Gallery
+<h1 align="center">Personal Art Gallery</h1>
 
 [![Aydın Kaan Çınar — ceramics, objects, and illustrations](docs/readme-banner.png)](https://arts.kaancinar.com)
 
