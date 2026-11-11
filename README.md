@@ -20,10 +20,16 @@ Visitors do not create accounts, check out, or upload artwork. [Clay Studio](htt
 ```mermaid
 flowchart TB
     Browser[Visitor browser] --> Vercel[Vercel · Next.js]
-    Vercel -->|Artwork data and image requests| Render[Render · Django API]
-    Cron["cron-job.org health check"] -->|Health alerts| Owner[Site owner]
-    Cron -->|"GET /healthz/ every 10 min"| Render
-    Owner -->|"Admin + MFA"| Render
+    Owner[Site owner] -->|"Admin + MFA"| Render
+    Vercel -->|Artwork data and image requests| Render
+
+    subgraph Backend["Backend infrastructure"]
+        Render[Render · Django API]
+        Cron["cron-job.org health check"] -->|"GET /healthz/ every 10 min"| Render
+    end
+
+    Owner ~~~ Cron
+    Cron -.->|Health alerts| Owner
     Render --> Neon[(Neon · PostgreSQL)]
     Render --> Gateway[Cloudflare Worker · private image gateway]
     Gateway --> R2[(Private R2 bucket)]
