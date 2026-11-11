@@ -7,12 +7,12 @@ import GalleryPagination from "@/components/GalleryPagination";
 import GalleryFilters from "@/components/GalleryFilters";
 import type { GalleryCategory } from "@/components/GalleryControls";
 import { notFound } from "next/navigation";
-
-const BACKEND_ORIGIN = "http://127.0.0.1:8000";
+import type { Metadata } from "next";
+import { artworkImagePath, BACKEND_ORIGIN } from "@/lib/site";
 
 type ApiArtworkImage = {
   id: number;
-  image: string;
+  card_image: string;
   alt_text: string;
   position: number;
 };
@@ -59,26 +59,23 @@ function readMonth(value: string | string[] | undefined) {
   return undefined;
 }
 
+function readPage(value: string | string[] | undefined) {
+  const page = typeof value === "string" ? Number(value) : 1;
+  return Number.isSafeInteger(page) && page > 0 ? page : 1;
+}
+
+export async function generateMetadata({ searchParams }: HomeProps): Promise<Metadata> {
+  const { page, category, search, created_from, created_to } = await searchParams;
+  const filtered = Boolean((category && category !== "all") || search || created_from || created_to);
+  const pageNumber = readPage(page);
+  return {
+    alternates: { canonical: !filtered && pageNumber > 1 ? `/?page=${pageNumber}` : "/" },
+    robots: filtered ? { index: false, follow: true } : undefined,
+  };
+}
+
 export default async function Home({ searchParams }: HomeProps) {
   const params = await searchParams;
-  const [categoriesResponse, boundsResponse] = await Promise.all([
-    fetch(`${BACKEND_ORIGIN}/items/categories/`, { cache: "no-store" }),
-    fetch(`${BACKEND_ORIGIN}/items/date-bounds/`, { cache: "no-store" }),
-  ]);
-
-  if (!categoriesResponse.ok || !boundsResponse.ok) {
-    throw new Error("Unable to load gallery filters.");
-  }
-
-  const categories: GalleryCategory[] = await categoriesResponse.json();
-  const dateBounds: DateBounds = await boundsResponse.json();
-
-  const category =
-    typeof params.category === "string" &&
-    categories.some((option) => option.value === params.category)
-      ? params.category
-      : "all";
-
   const search =
     typeof params.search === "string"
       ? params.search.trim().slice(0, 200)
@@ -100,28 +97,36 @@ export default async function Home({ searchParams }: HomeProps) {
     filters.set("created_to", createdTo);
   }
 
-  if (category !== "all") {
-    filters.set("category", category);
-  }
-
   if (search) {
     filters.set("search", search);
   }
-  const requestedPage =
-    typeof params.page === "string" ? Number(params.page) : 1;
-
-  const page =
-    Number.isSafeInteger(requestedPage) && requestedPage > 0
-      ? requestedPage
-      : 1;
-
-  const apiParams = new URLSearchParams(filters);
-  apiParams.set("page", String(page));
-
-  const response = await fetch(
-    `${BACKEND_ORIGIN}/items/?${apiParams.toString()}`,
-    { cache: "no-store" }
-  );
+  const page = readPage(params.page);
+  const categoriesPromise: Promise<GalleryCategory[]> = fetch(
+    `${BACKEND_ORIGIN}/items/categories/`, { cache: "no-store" },
+  ).then((response) => {
+    if (!response.ok) throw new Error("Unable to load gallery categories.");
+    return response.json();
+  });
+  const boundsPromise: Promise<DateBounds> = fetch(
+    `${BACKEND_ORIGIN}/items/date-bounds/`, { cache: "no-store" },
+  ).then((response) => {
+    if (!response.ok) throw new Error("Unable to load gallery date bounds.");
+    return response.json();
+  });
+  const categoryPromise = typeof params.category === "string" && params.category !== "all"
+    ? categoriesPromise.then((categories) =>
+        categories.find((option) => option.value === params.category)?.value ?? "all",
+      )
+    : Promise.resolve("all");
+  const artworkResponse = categoryPromise.then((category) => {
+    if (category !== "all") filters.set("category", category);
+    const apiParams = new URLSearchParams(filters);
+    apiParams.set("page", String(page));
+    return fetch(`${BACKEND_ORIGIN}/items/?${apiParams}`, { cache: "no-store" });
+  });
+  const [categories, dateBounds, category, response] = await Promise.all([
+    categoriesPromise, boundsPromise, categoryPromise, artworkResponse,
+  ]);
 
   if (response.status === 404) {
     notFound();
@@ -146,7 +151,7 @@ export default async function Home({ searchParams }: HomeProps) {
       <ThemeToggle />
       <GalleryHeader />
       <main className="gallery-main">
-        <h1 className="visually-hidden">Artworks</h1>
+        <h1 className="visually-hidden">Art portfolio of Aydın Kaan Çınar</h1>
         <GalleryFilters
           key={[
             category,
@@ -180,7 +185,7 @@ export default async function Home({ searchParams }: HomeProps) {
           )}
         </div>
         <div className="artwork-grid">
-          {artworkPage.results.map((artwork) => {
+          {artworkPage.results.map((artwork, index) => {
             const completionDate =
               artwork.creation_year !== null &&
               artwork.creation_month !== null
@@ -188,11 +193,9 @@ export default async function Home({ searchParams }: HomeProps) {
                     artwork.creation_month
                   ).padStart(2, "0")}`
                 : undefined;
-                  const detailParams = new URLSearchParams({ from: returnTo });
-
-                  const detailHref =
-                    `/artworks/${encodeURIComponent(artwork.slug)}` +
-                    `?${detailParams.toString()}`;
+            const detailPath = `/artworks/${encodeURIComponent(artwork.slug)}`;
+            const detailHref = returnTo === "/" ? detailPath
+              : `${detailPath}?${new URLSearchParams({ from: returnTo })}`;
             return (
               <ArtworkCard
                 key={artwork.id}
@@ -200,10 +203,11 @@ export default async function Home({ searchParams }: HomeProps) {
                 completionDate={completionDate}
                 imageUrl={
                   artwork.cover_image
-                    ? new URL(artwork.cover_image.image, BACKEND_ORIGIN).href
+                    ? artworkImagePath(artwork.cover_image.card_image)
                     : undefined
                 }
                 imageAlt={artwork.cover_image?.alt_text}
+                priority={index === 0}
                 href={detailHref}
               />
             );

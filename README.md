@@ -1,8 +1,12 @@
 # Kaan Gallery
 
-A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend and Next.js frontend run locally, with a responsive gallery based on approved light/dark mockups.
+A personal gallery for the artwork of Aydın Kaan Çınar, developed step by step as a full-stack learning project. The Django REST Framework backend runs on Render, and the Next.js frontend is live at [arts.kaancinar.com](https://arts.kaancinar.com).
 
-**Status: local development, not production-ready.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Production infrastructure and remaining security work are not deployed.
+**Status: public deployment, release hardening in progress.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Monitoring, backups/restore verification, bot protection, and broader browser checks remain.
+
+New work starts from `main` on a feature branch. Merge it into `main` before
+fast-forwarding either deployment branch. See the [branch and release
+workflow](docs/BRANCH_WORKFLOW.md).
 
 ## Current features
 
@@ -23,7 +27,7 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 - Browser-aware theme defaults, persistent manual theme choices, and contact links.
 - Clay Studio vessel modeling, clay estimates, undo/redo, saved designs, and shareable design links. See [model assumptions](docs/CLAY_STUDIO.md); the vessel estimate includes a provisional 25% adjustment, not a manufacturer calibration.
 - Public field allowlists hide prices, inventory quantities, and management metadata; price queries require verified staff.
-- **123 passing backend tests**, verified 2026-11-08; 12 frontend behavior tests, lint, and production build also pass.
+- **160 passing backend tests** and **21 quota-gateway tests**, verified 2026-11-10. Frontend verification includes 12 logic tests, eight browser checks, lint, and a production build.
 
 ## Architecture
 
@@ -31,10 +35,10 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 | --- | --- |
 | Backend | Django 5.2 + Django REST Framework |
 | Local database | SQLite |
-| Local image storage | Files under ignored `media/`; delivered through Django access checks |
+| Local image storage | Private R2 gateway when configured; filesystem fallback under ignored `media/` |
 | Frontend | Next.js 16 + React 19 + TypeScript, implemented locally |
 | Hosting | Vercel frontend, Render backend, Neon PostgreSQL; free tiers initially, planned |
-| Production media | Private object storage, provider to be selected |
+| Production media | Private Cloudflare R2 quota Worker deployed; 124 files imported and verified; production Django hosting pending |
 | Edge security | Cloudflare proxy/Access with direct-origin bypass protection, planned |
 
 The first release is a gallery with private administration. Sales are deferred. The frontend includes light/dark themes, individual artwork pages, search, categories, a completion-date range slider, and MM/YY dates beside titles. Visitor sorting controls are not planned initially; explicit backend sorting remains available.
@@ -53,7 +57,9 @@ python3.12 -m venv .venv
 ./.venv/bin/python manage.py runserver
 ```
 
-For an existing installation, run migrations and start the server. The database and artwork files are not included in Git; a fresh install starts empty.
+For an existing installation, run migrations and generate variants for existing
+uploads with `./.venv/bin/python manage.py generate_artwork_variants` before
+serving the frontend. A fresh installation starts with an empty gallery.
 
 1. Open [MFA login](http://127.0.0.1:8000/account/login/).
 2. After password authentication, open [authenticator setup](http://127.0.0.1:8000/account/two_factor/setup/) and complete enrollment.
@@ -61,6 +67,24 @@ For an existing installation, run migrations and start the server. The database 
 4. Publish an artwork to make it visible to anonymous gallery requests. New artwork defaults to draft.
 
 Admin access requires MFA verification. Keep authenticator secrets and recovery material private. Test fixtures use simulated sessions in selected tests; those helpers are not a production login mechanism.
+
+## PostgreSQL setup
+
+A Neon project is created and its Django schema is initialized. Read the
+[Neon setup notes](docs/NEON_SETUP.md) for connection handling and the opt-in
+`config.settings_postgres` module. Existing local startup still uses SQLite;
+records have also been imported and verified. The local server now uses Neon
+and R2. Production configuration and hosting are pending.
+
+The backend now runs in [local Docker](docs/LOCAL_DOCKER.md). Start/rebuild it
+with `docker compose up -d --build backend`. The virtual-environment alternative
+is `./.venv/bin/python scripts/run_backend.py` after stopping the container;
+plain `manage.py runserver` still selects the SQLite defaults.
+
+Follow the [HTML PostgreSQL testing walkthrough](docs/POSTGRES_TESTING.html)
+to create an isolated Neon branch and run the Django suite against PostgreSQL.
+The [HTML migration record](docs/SQLITE_TO_NEON.html) explains the completed
+SQLite-to-Neon transfer, verification, backup limits and next deployment steps.
 
 ## Frontend setup
 
@@ -73,10 +97,10 @@ npm ci
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). The frontend currently uses
-the local Django address directly; deployment-specific API configuration remains
-planned. `SITE_URL` controls absolute sharing URLs and defaults to localhost;
-set it to the real public frontend origin before deployment.
+Open [http://localhost:3000](http://localhost:3000). The frontend uses
+`BACKEND_ORIGIN` for Django requests and defaults to `http://127.0.0.1:8000`.
+Set it and `SITE_URL` to their production origins before building and starting
+the public site. `SITE_URL` sets the canonical, sharing, and sitemap URLs.
 
 ```bash
 npm run lint
@@ -87,10 +111,26 @@ npm start
 The production build passes, but that is not a production security or hosting
 approval. See [frontend notes](frontend/README.md) for current limitations.
 
-Dependency audit on 2026-11-08: `npm audit --omit=dev` reports zero findings.
-The full audit reports eight moderate development-tool findings through
-`minimatch` and TypeScript ESLint. They remain unresolved; no forced major
-upgrades or dependency overrides were applied.
+Frontend dependency audits on 2026-11-08: both `npm audit` and
+`npm audit --omit=dev` report zero findings. A scoped npm override pins
+`minimatch` to 11.0.5 for `@typescript-eslint/typescript-estree` to address
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249).
+Remove the override once TypeScript ESLint supplies a patched version itself.
+
+### Private storage circuit breaker
+
+Read the [illustrated HTML implementation guide](docs/R2_QUOTA_GATEWAY.html) for
+the system design, quota behavior, code references, and remaining setup.
+
+[The R2 gateway](cloudflare/r2-gateway/README.md) reserves quota before storage
+operations and stops access at configured safety margins. It includes 90%
+warnings, a 15-minute analytics check, and a manual lock. Django's gateway
+storage backend is enabled with `ARTWORK_GATEWAY_URL` and
+`ARTWORK_GATEWAY_TOKEN`; local development uses filesystem storage by default.
+Worker deployment, live analytics, email delivery and media import are verified.
+This workstation selects the gateway through private `.artwork-storage.json`;
+production Django hosting still needs its own environment configuration. Application controls cannot provide a provider-enforced billing
+guarantee for activity outside the gateway.
 
 ## API
 
@@ -101,13 +141,33 @@ Use trailing slashes. Public item reads are restricted to published artwork; act
 | `/items/` | GET, POST | Paginated artwork list; protected creation |
 | `/items/categories/` | GET | Category values/labels used by published artworks |
 | `/items/date-bounds/` | GET | Earliest/latest known published completion months |
+| `/items/artwork-index/` | GET | Published artwork slugs and detail image paths for the sitemap |
 | `/items/<id>/` | GET, PATCH, DELETE | Read, update, or delete by ID |
 | `/artworks/<slug>/` | GET | Read artwork by stable slug |
-| `/artwork-images/<id>/` | GET | Stream an image subject to current publication and session checks |
+| `/artwork-images/<id>/` | GET, HEAD | Serve the original subject to current publication and session checks |
+| `/artwork-images/<id>/<variant>/` | GET, HEAD | Serve the card, detail, or share image with the same checks |
 | `/artists/` | GET, POST | Artists linked to published work; protected creation |
 | `/artists/<id>/` | GET, PATCH, DELETE | Read, update, or delete an artist |
 
 POST, PATCH, and DELETE require staff/MFA session authorization and CSRF protection. Image uploads currently use private admin forms; there is no public image-upload API. Item PATCH returns 200 without a response body; successful deletion returns 204.
+
+### Drawing image protection
+
+Enable **Protect images** in admin to protect an artwork's images. The checkbox
+controls protection for every category.
+Protected artwork uses watermarked card and sharing images and a watermarked
+detail/viewer image with a longest edge up to 1200 pixels. The watermark is
+embedded near the bottom of each file and reads `kaancinar.com`. Original files require an
+active, MFA-verified staff session, even for published works. The public image
+field points to the protected viewer copy.
+
+New uploads and enabling protection through admin or the API generate protected
+variants. After importing older media or upgrading, run
+`./.venv/bin/python manage.py generate_artwork_variants`. Keep all media storage
+private and serve files through the checked image routes. Clean variants from
+before protection may remain in storage, but the image routes serve only the
+currently permitted versions. Previously downloaded copies remain with their
+recipients.
 
 ### Search and filtering
 
@@ -211,3 +271,18 @@ After updating security Markdown, regenerate its HTML version:
 ```bash
 python3 scripts/build_security_page.py
 ```
+
+## Production backend preparation
+
+The [Docker and production setup](docs/PRODUCTION_DEPLOYMENT.md) is implemented
+and verified locally, with 167 backend tests passing. The image runs Gunicorn
+as a non-root user, serves admin static files with WhiteNoise, and requires
+runtime PostgreSQL/R2 credentials. Render setup and production deployment remain
+pending. See `.env.example` for configuration names, never actual secrets.
+
+## Render verification deployment
+
+The backend is [live on Render](https://kaan-gallery-backend.onrender.com/items/)
+on the Free plan in Virginia. See the [deployment record](docs/RENDER_DEPLOYMENT.md)
+for the source commit, runtime settings, verified checks and remaining release
+work. The existing kaancinar.com website remains unchanged.

@@ -1,25 +1,27 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { themeBootstrapScript } from "@/components/theme-store";
+import {
+  GALLERY_DESCRIPTION, GALLERY_PREVIEW, GALLERY_TITLE, SITE_NAME, SITE_URL,
+} from "@/lib/site";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
-  title: "Aydın Kaan Çınar — Art Gallery",
-  description: "Ceramics, objects, and illustrations by Aydın Kaan Çınar.",
+  metadataBase: SITE_URL,
+  robots: process.env.VERCEL_ENV === "preview" ? { index: false, follow: false } : undefined,
+  title: GALLERY_TITLE,
+  description: GALLERY_DESCRIPTION,
   openGraph: {
     type: "website",
-    siteName: "Kaan Gallery",
-    title: "Aydın Kaan Çınar — Art Gallery",
-    description: "Ceramics, objects, and illustrations by Aydın Kaan Çınar.",
+    siteName: SITE_NAME,
+    title: GALLERY_TITLE,
+    description: GALLERY_DESCRIPTION,
+    images: [GALLERY_PREVIEW],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Aydın Kaan Çınar — Art Gallery",
-    description: "Ceramics, objects, and illustrations by Aydın Kaan Çınar.",
-    images: [{
-      url: "/opengraph-image.png",
-      alt: "Red sun emblem beside the stacked name Aydın Kaan Çınar.",
-    }],
+    title: GALLERY_TITLE,
+    description: GALLERY_DESCRIPTION,
+    images: [GALLERY_PREVIEW],
   },
 };
 

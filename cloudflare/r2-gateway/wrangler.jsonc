@@ -1,0 +1,29 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "kaan-gallery-r2-gateway",
+  "account_id": "63321e3664c43ed42201ca96dc11be67",
+  "main": "src/index.js",
+  "compatibility_date": "2026-11-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    { "binding": "BUCKET", "bucket_name": "kaan-gallery-media" }
+  ],
+  "durable_objects": {
+    "bindings": [{ "name": "QUOTA", "class_name": "QuotaGate" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaGate"] }],
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "vars": {
+    "ACCOUNT_ID": "63321e3664c43ed42201ca96dc11be67",
+    "ALERT_EMAIL_FROM": "Kaan Gallery Alerts <alerts@notify.kaancinar.com>",
+    "ALERT_EMAIL_TO": "akcinar99@gmail.com",
+    "BILLING_ANCHOR_UTC": "2026-11-10T00:00:00.000Z",
+    "BILLING_RESET_CONFIRMED": "false",
+    "CLASS_A_LIMIT": "950000",
+    "CLASS_B_LIMIT": "9500000",
+    "STORAGE_LIMIT_BYTES": "9500000000",
+    "CLASS_A_WARNING": "900000",
+    "CLASS_B_WARNING": "9000000",
+    "STORAGE_WARNING_BYTES": "9000000000"
+  }
+}

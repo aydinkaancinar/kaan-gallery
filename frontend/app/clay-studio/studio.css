@@ -231,6 +231,14 @@
 .cs-view circle {
   cursor: ew-resize;
 }
+.cs-watermark {
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  opacity: 0.3;
+  pointer-events: none;
+  user-select: none;
+}
 .cs-stage-hint {
   text-align: center;
   color: var(--soft);
