@@ -18,13 +18,12 @@ Visitors do not create accounts, check out, or upload artwork. [Clay Studio](htt
 ## How it works
 
 ```mermaid
-flowchart LR
+flowchart TB
     Browser[Visitor browser] --> Vercel[Vercel · Next.js]
     Vercel -->|Artwork data and image requests| Render[Render · Django API]
-    Owner[Site owner] -->|Admin + MFA| Render
-    Actions[GitHub Actions] -.->|Sync schedule from main| Cron[cron-job.org]
-    Cron -->|GET /healthz/ every 10 min| Render
-    Cron -.->|Health alerts| Owner
+    Cron["cron-job.org health check"] -->|Health alerts| Owner[Site owner]
+    Cron -->|"GET /healthz/ every 10 min"| Render
+    Owner -->|"Admin + MFA"| Render
     Render --> Neon[(Neon · PostgreSQL)]
     Render --> Gateway[Cloudflare Worker · private image gateway]
     Gateway --> R2[(Private R2 bucket)]
