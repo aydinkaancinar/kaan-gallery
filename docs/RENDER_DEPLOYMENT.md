@@ -108,3 +108,34 @@ available. Rollback of a Render image does not roll back database changes.
 
 The official Render plugin was installed, but its tools were not exposed in the
 session. Deployment used the official Render CLI 2.35.0 and documented API instead.
+
+## Render keepalive and alerts
+
+The [cron-job.org configuration](../monitoring/render-keepalive.json) sends a
+GET to the public Render `/healthz/` endpoint every 10 minutes. It emails the
+cron-job.org account owner on failure, recovery, and automatic disablement.
+The probe checks Django liveness without querying Neon or R2.
+
+Generate an API key in cron-job.org Console → Settings and supply it through
+the local `CRON_JOB_ORG_API_KEY` environment variable. From the repository root:
+
+```bash
+python3 scripts/sync_render_keepalive.py --create
+python3 scripts/sync_render_keepalive.py --job-id JOB_ID
+```
+
+Run the first command once and save the returned job ID. If a job already exists,
+use its ID with the second command. Use that same ID to apply later changes.
+After an ambiguous create failure, check the console for the job before retrying.
+Verify the job's execution history and notification settings in the console.
+Add the API key as the GitHub Actions repository secret `CRON_JOB_ORG_API_KEY`
+and the existing job ID as the repository variable `CRON_JOB_ORG_JOB_ID`.
+The [Sync Render keepalive workflow](../.github/workflows/render-keepalive.yml)
+applies JSON changes on `main` and reads the job back to verify the settings.
+Use **Run workflow** on `main` for the first sync or to reapply the configuration.
+cron-job.org runs the schedule independently of GitHub Actions and Render deploys.
+
+At 10-minute intervals, one missed request can let Render reach its 15-minute
+idle cutoff. A cold start can exceed the scheduler's default timeout, and
+cron-job.org can disable the job after repeated failures. Check the console
+before re-enabling it after an auto-disable alert.

@@ -1,0 +1,32 @@
+name: Sync Render keepalive
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - monitoring/render-keepalive.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: render-keepalive
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Read main when the queued job starts, even if its trigger is older.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Apply and verify the existing cron job
+        env:
+          CRON_JOB_ORG_API_KEY: ${{ secrets.CRON_JOB_ORG_API_KEY }}
+          CRON_JOB_ORG_JOB_ID: ${{ vars.CRON_JOB_ORG_JOB_ID }}
+        run: python3 scripts/sync_render_keepalive.py --job-id "$CRON_JOB_ORG_JOB_ID"
