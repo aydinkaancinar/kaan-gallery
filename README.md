@@ -17,25 +17,7 @@ Visitors do not create accounts, check out, or upload artwork. [Clay Studio](htt
 
 ## How it works
 
-```mermaid
-flowchart TB
-    Browser[Visitor browser] --> Vercel[Vercel · Next.js]
-    Owner[Site owner] -->|"Admin + MFA"| Render
-    Vercel -->|Artwork data and image requests| Render
-
-    subgraph Backend["Backend infrastructure"]
-        Render[Render · Django API]
-        Cron["cron-job.org health check"] -->|"GET /healthz/ every 10 min"| Render
-    end
-
-    Owner ~~~ Cron
-    Cron -.->|Health alerts| Owner
-    Render --> Neon[(Neon · PostgreSQL)]
-    Render --> Gateway[Cloudflare Worker · private image gateway]
-    Gateway --> R2[(Private R2 bucket)]
-    Gateway --> Ledger[(Durable Object · quota ledger)]
-    Gateway -.->|Quota alerts| Resend[Resend · email]
-```
+![Gallery architecture showing visitor and owner access, Render health checks and alerts, and backend storage](docs/gallery-architecture.svg)
 
 Next.js renders the public pages and asks Django for artwork data. Image URLs stay under the gallery domain through a Next.js rewrite, but Django checks publication and image-protection rules before reading files from the private gateway. The browser never receives R2 credentials or a direct bucket URL.
 
