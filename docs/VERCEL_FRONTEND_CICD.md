@@ -8,9 +8,10 @@ GitHub Actions. The workflow deploys the exact checkout it tested.
 
 The job installs the locked Node and Python dependencies, runs lint and unit
 tests, and runs Playwright's desktop and phone journeys against a disposable
-local Django catalog. It then pulls the **production** Vercel settings, builds
-with `vercel build --prod`, and uploads that build with
-`vercel deploy --prebuilt --prod`. A failed check stops deployment. Runs are
+local Django catalog. It then checks a production Next.js build using the
+documented public origins and asks Vercel to build and deploy with
+`vercel deploy --prod`. Vercel supplies its Production environment settings
+to that build. A failed check stops deployment. Runs are
 serialized so an older run cannot finish after a newer one.
 
 ## One-time GitHub secret
@@ -24,7 +25,9 @@ identify the destination; they are not credentials. The job fails before
 deploying if the secret is absent.
 
 `BACKEND_ORIGIN` and `SITE_URL` stay in the Vercel project's Production
-environment settings. The workflow pulls them at build time. Keep the Vercel
+environment settings. Vercel marks their values sensitive, so its CLI replaces
+them with placeholders when pulling them into GitHub Actions. This is why the
+final build runs on Vercel. Keep the Vercel
 project's Git auto-deployment disabled or disconnected, so it cannot publish a
 push before these checks finish. Its custom domain remains attached to the
 production project; a successful `--prod` deployment updates that domain.
