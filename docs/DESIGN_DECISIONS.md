@@ -26,6 +26,24 @@ The [runtime diagram](../README.md#how-it-works) shows the request path. [Small 
 
 The custom domain has a separate renewal cost. These service tiers can change, and exceeding a provider allowance may stop service or create charges. The [R2 quota Worker](R2_QUOTA_GATEWAY.html) warns at 90% and blocks gallery storage calls before configured safety margins, but direct provider activity and delayed usage reports mean it cannot guarantee a zero bill. Until the exact R2 renewal hour is confirmed, its current configuration deliberately holds billable access at the December 10 boundary for review. The zero-cost goal is a budget constraint, not a promise of uninterrupted service.
 
+## Render keepalive
+
+cron-job.org sends a GET to the public Render `/healthz/` endpoint every 10 minutes
+and emails the owner on failure, recovery, or automatic disablement. The endpoint
+checks Django liveness without querying Neon or R2. Database or storage failures
+can still affect the gallery while the check passes.
+
+GitHub Actions syncs `monitoring/render-keepalive.json` to the existing cron job
+when the file changes on `main`, then reads back the settings to verify the
+update. The workflow can also be run manually. The API key stays in GitHub
+Actions secrets, and the job ID is a repository variable. cron-job.org runs
+the checks independently of backend releases.
+
+The 10-minute schedule gives Render five minutes of margin before its 15-minute
+idle cutoff. One missed probe can let the service sleep, and a cold start can
+outlast the scheduler's default timeout. Keeping one service warm can use up to
+744 of the workspace's 750 free instance-hours in a 31-day month.
+
 ## Access and privacy
 
 The [admin](../items/admin.py) and write routes are intended for the site owner only. Password, authenticator-app MFA, permissions, CSRF protection and session expiry protect editing. The code can support staff accounts, but there is no visitor sign-up. Owner-only access still leaves public request logs and possible unauthorized login attempts; it does not remove the need for the [privacy policy](../frontend/app/privacy/page.tsx) or an operating retention practice. The owner has deferred login-record cleanup for now.
@@ -39,7 +57,7 @@ Every change starts on `feature/*` or `fix/*` from the latest `main` and reaches
 ## Decisions still under review
 
 - Protect direct requests to the Render origin, and measure page speed with the Free backend's cold starts.
-- Verify backups by restoring them; add monitoring and broader browser/device checks.
+- Verify backups by restoring them; expand monitoring and run broader browser/device checks.
 - Confirm Vercel Hobby suitability and account data preferences, review live cookies/provider settings, and settle retention practices before treating the privacy review as complete.
 - Refine Clay Studio's provisional clay-weight adjustment when more real measurements are available.
 
