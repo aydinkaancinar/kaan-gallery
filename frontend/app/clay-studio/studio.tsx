@@ -24,6 +24,7 @@ const CM_PER_INCH = 2.54;
 const POUNDS_PER_KG = 2.20462262185;
 const LITRES_PER_US_GALLON = 3.785411784;
 const HAND_HEIGHT_CM = 18;
+const PREVIEW_ROWS = 160;
 const SAVE_KEY = "kaan-clay-design-v1";
 
 function Slider({
@@ -92,11 +93,13 @@ export default function ClayStudio({
   initialImperial,
   initialShowHand,
   invalidLink,
+  websiteHost,
 }: {
   initialDesign?: Design;
   initialImperial: boolean;
   initialShowHand: boolean;
   invalidLink: boolean;
+  websiteHost: string;
 }) {
   const [design, setDesign] = useState<Design>(
     () => initialDesign ?? makeDesign("vase"),
@@ -154,12 +157,21 @@ export default function ClayStudio({
   } | null>(null);
   const result = estimate(design),
     section = design.sections[selectedSectionIndex] ?? design.sections[0];
+  const floor = 510,
+    center = 310;
+  const pitch = rotateMode ? tilt : 0.16;
+  const depthFactor = Math.abs(Math.sin(pitch));
+  const projectedHeight = Math.max(
+    ...Array.from({ length: PREVIEW_ROWS + 1 }, (_, i) => {
+      const y = i / PREVIEW_ROWS;
+      return y * design.height + radiusAt(design.sections, y) * depthFactor;
+    }),
+  );
   const scale = Math.min(
     390 / Math.max(design.height, showHand ? HAND_HEIGHT_CM : 0),
     225 / Math.max(...design.sections.map((s) => s.r + Math.abs(s.curve))),
+    (floor - 52) / projectedHeight,
   );
-  const floor = 510,
-    center = 310;
   function remember() {
     setHistory((h) => [...h.slice(-49), structuredClone(design)]);
     setFuture([]);
@@ -226,8 +238,7 @@ export default function ClayStudio({
     const ctx = canvas.current?.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, 620, 600);
-    const a = rotateMode ? angle : 0.35,
-      pitch = rotateMode ? tilt : 0.16;
+    const a = rotateMode ? angle : 0.35;
     function project(r: number, y: number, t: number) {
       const x = r * Math.cos(t + a),
         z = r * Math.sin(t + a);
@@ -253,7 +264,7 @@ export default function ClayStudio({
       color: string;
     };
     const faces: Face[] = [];
-    const rows = 160,
+    const rows = PREVIEW_ROWS,
       sides = 96;
     function ring(
       r0: number,
@@ -356,7 +367,7 @@ export default function ClayStudio({
       ctx.lineWidth = 0.5;
       ctx.stroke();
     }
-  }, [design, angle, tilt, rotateMode, scale, darkMode]);
+  }, [design, angle, pitch, rotateMode, scale, darkMode]);
   function pointer(e: React.PointerEvent<SVGSVGElement>) {
     if (!drag.current || !svg.current) return;
     const rect = svg.current.getBoundingClientRect();
@@ -515,8 +526,8 @@ export default function ClayStudio({
               </span>
             </h1>
             <p>
-              Explore a form. Find its proportions. Know how much clay to
-              prepare.
+              Design a pottery vessel, adjust its proportions and wall
+              thickness, and estimate how much wet clay to prepare.
             </p>
           </div>
           <div className="cs-actions">
@@ -821,6 +832,14 @@ export default function ClayStudio({
                   fill="url(#cs-grid)"
                   pointerEvents="none"
                 />
+                <text
+                  className="cs-watermark"
+                  x={center}
+                  y={floor - projectedHeight * scale - 15}
+                  textAnchor="middle"
+                >
+                  {websiteHost}
+                </text>
                 <line
                   x1="85"
                   y1={floor}

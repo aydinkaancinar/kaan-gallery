@@ -1,0 +1,91 @@
+name: Test and deploy Vercel frontend
+
+on:
+  push:
+    branches:
+      - deploy/frontend-preview
+    paths:
+      - frontend/**
+      - requirements-lock.txt
+      - .github/workflows/vercel-frontend.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vercel-frontend-production
+  cancel-in-progress: false
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      VERCEL_ORG_ID: team_kHyhQTsAJUwBKaOgs5q5xsWf
+      VERCEL_PROJECT_ID: prj_06N4GBj7f0uPtmIJHTTG8tbNMPTm
+    steps:
+      - name: Check out the pushed commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint and run frontend tests
+        run: |
+          npm run lint
+          npm test
+
+      - name: Set up Python for browser tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-lock.txt
+
+      - name: Install browser test dependencies
+        run: |
+          python -m venv ../.venv
+          ../.venv/bin/python -m pip install -r ../requirements-lock.txt
+          npx playwright install --with-deps chromium
+
+      - name: Run desktop and phone browser tests
+        run: npm run test:browser
+
+      - name: Check Vercel deployment credential
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo 'Missing repository secret VERCEL_TOKEN' >&2
+            exit 1
+          fi
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull production project settings
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Check production build locally
+        env:
+          BACKEND_ORIGIN: https://kaan-gallery-backend.onrender.com
+          SITE_URL: https://arts.kaancinar.com
+        run: npm run build
+
+      - name: Build and deploy on Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"

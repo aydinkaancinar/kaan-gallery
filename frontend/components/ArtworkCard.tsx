@@ -7,6 +7,7 @@ type ArtworkCardProps = {
   imageUrl?: string;
   imageAlt?: string;
   href?: string;
+  priority?: boolean;
 };
 
 export default function ArtworkCard({
@@ -15,6 +16,7 @@ export default function ArtworkCard({
   imageUrl,
   imageAlt,
   href,
+  priority,
 }: ArtworkCardProps) {
   const displayDate = completionDate
     ? `${completionDate.slice(5, 7)}/${completionDate.slice(2, 4)}`
@@ -29,6 +31,8 @@ export default function ArtworkCard({
             alt={imageAlt || title}
             fill
             unoptimized
+            loading={priority ? "eager" : "lazy"}
+            fetchPriority={priority ? "high" : undefined}
           />
         ) : (
           <span className="visually-hidden">Image unavailable</span>

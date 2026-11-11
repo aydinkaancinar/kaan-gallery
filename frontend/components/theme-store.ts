@@ -30,14 +30,14 @@ function systemTheme(): Theme {
 }
 
 export function getTheme(): Theme {
-  if (typeof document === "undefined") return getServerTheme();
+  if (typeof document === "undefined") return "light";
   const applied = document.documentElement.dataset.theme;
   return isTheme(applied) ? applied : savedPreference() ?? systemTheme();
 }
 
-export function getServerTheme(): Theme {
-  // The server cannot read this browser's localStorage or media preference.
-  return "light";
+export function getServerTheme(): null {
+  // Keep theme buttons pending until their browser event handlers are ready.
+  return null;
 }
 
 export function subscribeToTheme(onChange: () => void) {

@@ -1,10 +1,28 @@
 import type { Metadata } from "next";
 import { inflateSync } from "node:zlib";
 import { readSharedDesign } from "@/lib/clay-design-link";
+import StructuredData from "@/components/StructuredData";
+import { GALLERY_PREVIEW, SITE_NAME, SITE_URL } from "@/lib/site";
 import ClayStudio from "./studio";
+
+const studioPath = "/clay-studio";
+const title = "Clay Studio — Pottery Design and Clay Weight Calculator";
+const description =
+  "Design a pottery vessel, adjust its proportions and wall thickness, and estimate how much wet clay to prepare.";
+
 export const metadata: Metadata = {
-  title: "Clay studio — Kaan Gallery",
-  description: "Shape a vessel and estimate its wet clay weight.",
+  title,
+  description,
+  alternates: { canonical: studioPath },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    title,
+    description,
+    url: studioPath,
+    images: [GALLERY_PREVIEW],
+  },
+  twitter: { card: "summary_large_image", title, description, images: [GALLERY_PREVIEW] },
 };
 function decodeDesignParameter(encoded: string | undefined) {
   if (!encoded?.startsWith("2.")) return encoded;
@@ -35,17 +53,27 @@ export default async function Page({
   const encoded = typeof params.design === "string" ? params.design : undefined;
   const design = readSharedDesign(decodeDesignParameter(encoded));
   return (
-    <ClayStudio
-      key={JSON.stringify([
-        design,
-        params.units,
-        params.hand,
-        params.design !== undefined,
-      ])}
-      initialDesign={design}
-      initialImperial={params.units === "imperial"}
-      initialShowHand={params.hand !== "off"}
-      invalidLink={params.design !== undefined && !design}
-    />
+    <>
+      <StructuredData data={{
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "Clay Studio",
+        url: new URL(studioPath, SITE_URL).href,
+        description,
+      }} />
+      <ClayStudio
+        key={JSON.stringify([
+          design,
+          params.units,
+          params.hand,
+          params.design !== undefined,
+        ])}
+        initialDesign={design}
+        initialImperial={params.units === "imperial"}
+        initialShowHand={params.hand !== "off"}
+        invalidLink={params.design !== undefined && !design}
+        websiteHost={process.env.SITE_URL ? SITE_URL.hostname : "kaancinar.com"}
+      />
+    </>
   );
 }

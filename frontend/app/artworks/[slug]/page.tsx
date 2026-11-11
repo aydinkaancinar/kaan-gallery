@@ -2,14 +2,17 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import GalleryHeader from "@/components/GalleryHeader";
+import GalleryFooter from "@/components/GalleryFooter";
 import ThemeToggle from "@/components/ThemeToggle";
 import ArtworkImageGallery from "@/components/ArtworkImageGallery";
-
-const BACKEND_ORIGIN = "http://127.0.0.1:8000";
+import StructuredData from "@/components/StructuredData";
+import { artworkImagePath, BACKEND_ORIGIN, GALLERY_PREVIEW, SITE_NAME, SITE_URL } from "@/lib/site";
 
 type ArtworkPhoto = {
   id: number;
   image: string;
+  detail_image: string;
+  share_image: string;
   alt_text: string;
   position: number;
 };
@@ -67,16 +70,13 @@ export async function generateMetadata({
 
   const previewImage = artwork.cover_image
     ? {
-        url: new URL(
-            artwork.cover_image.image,
-            BACKEND_ORIGIN
-        ).href,
+        url: artworkImagePath(artwork.cover_image.share_image),
         alt: artwork.cover_image.alt_text || artwork.name,
-        }
-    : {
-        url: "/opengraph-image.png",
-        alt: "Red sun emblem beside the stacked name Aydın Kaan Çınar.",
-        };
+        width: 1200,
+        height: 630,
+        type: "image/jpeg",
+      }
+    : GALLERY_PREVIEW;
 
   return {
     title,
@@ -84,9 +84,10 @@ export async function generateMetadata({
     alternates: {
       canonical: artworkPath,
     },
+    robots: { googleBot: { "max-image-preview": "large" } },
     openGraph: {
       type: "website",
-      siteName: "Kaan Gallery",
+      siteName: SITE_NAME,
       title,
       description,
       url: artworkPath,
@@ -133,10 +134,13 @@ export default async function ArtworkPage({
     : artwork.cover_image ? [artwork.cover_image] : [];
   const images = photos.map((photo) => ({
     id: photo.id,
-    src: new URL(photo.image, BACKEND_ORIGIN).href,
+    src: artworkImagePath(photo.detail_image),
+    viewerSrc: artworkImagePath(photo.image),
     alt: photo.alt_text || artwork.name,
   }));
-  const categoryLabel = artwork.category.replace(/_/g, " ");
+  const categoryLabel = artwork.category.replace(/[-_]/g, " ");
+  const artist = artwork.artist_details;
+  const artworkUrl = new URL(`/artworks/${encodeURIComponent(slug)}`, SITE_URL).href;
 
   return (
     <div className="gallery-shell">
@@ -144,6 +148,17 @@ export default async function ArtworkPage({
       <GalleryHeader />
 
       <main className="artwork-detail">
+        <StructuredData data={{
+          "@context": "https://schema.org",
+          "@type": "VisualArtwork",
+          name: artwork.name,
+          url: artworkUrl,
+          description: artwork.description || undefined,
+          image: images.length ? images.map(({ src }) => new URL(src, SITE_URL).href) : undefined,
+          artform: categoryLabel,
+          dateCreated: completionDate,
+          creator: artist ? { "@type": "Person", name: `${artist.name} ${artist.surname}`.trim() } : undefined,
+        }} />
         <Link
           className="artwork-back"
           href={returnTo}
@@ -189,15 +204,7 @@ export default async function ArtworkPage({
         </ArtworkImageGallery>
       </main>
 
-      <footer className="gallery-footer">
-        <a
-          href="https://kaancinar.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          kaancinar.com
-        </a>
-      </footer>
+      <GalleryFooter />
     </div>
   );
 }
