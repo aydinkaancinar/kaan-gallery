@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
 
+test("privacy policy is linked from the gallery and readable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("link", { name: "Privacy policy" }).click();
+  await expect(page).toHaveURL("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy policy" })).toBeVisible();
+  await expect(page.getByText("Toronto, Ontario", { exact: false })).toBeVisible();
+  await expect(page.getByRole("link", { name: "akcinar99@gmail.com" })).toBeVisible();
+});
+
 test("filters survive artwork navigation, Back, Forward, and reload", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("article")).toHaveCount(3);
