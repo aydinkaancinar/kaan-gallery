@@ -1,6 +1,6 @@
 # Kaan Gallery
 
-[![Aydın Kaan Çınar — ceramics, objects, and illustrations](frontend/public/opengraph-image.png)](https://arts.kaancinar.com)
+[![Aydın Kaan Çınar — ceramics, objects, and illustrations](docs/readme-banner.png)](https://arts.kaancinar.com)
 
 **[Visit the live portfolio → arts.kaancinar.com](https://arts.kaancinar.com)**
 
