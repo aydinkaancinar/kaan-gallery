@@ -1,6 +1,6 @@
 # Repository working rules
 
-- Read `README.md` at the start of a task for the current architecture, code map, local setup, deployment flow, and known gaps. Then read the relevant linked guide and verify behavior against the code or live settings before changing it. Keep the README in sync when architecture or release procedures change.
+- Read `README.md` at the start of a task for the current architecture, code map, local setup, deployment flow, and known gaps. Read `docs/DESIGN_DECISIONS.md` for architecture, hosting, cost, or data-flow work. Then read the relevant linked guide and verify behavior against the code or live settings before changing it. Keep both documents in sync when their assumptions or release procedures change.
 - Start every code or documentation change on a new `feature/*` (or `fix/*`) branch created from the latest `origin/main`.
 - Never commit, cherry-pick, or merge a feature branch directly into `deploy/render-backend` or `deploy/frontend-preview`.
 - Review and test the feature branch, then merge it into `main` first. Keep `main` as the source of truth for both deployments.
