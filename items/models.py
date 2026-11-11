@@ -2,6 +2,7 @@ from django.db import models
 from django.utils.text import slugify
 from .validators import validate_image_size, validate_image_format
 from django.core.validators import MaxValueValidator, MinValueValidator
+from .image_variants import generate_variants
 
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
@@ -83,6 +84,10 @@ class Item(models.Model):
         validators=[MinValueValidator(0)],
         help_text="Lower numbers appear first. Leave blank to order by creation date.",
     )
+    protect_images = models.BooleanField(
+        default=False,
+        help_text="Watermark public images and keep originals staff-only.",
+    )
 
     class Meta:
         ordering = [
@@ -103,6 +108,12 @@ class Item(models.Model):
                 number += 1
             self.slug = candidate
 
+        fields = kwargs.get("update_fields")
+        if not self._state.adding and (fields is None or "protect_images" in fields):
+            previous = Item.objects.only("protect_images").get(pk=self.pk)
+            if previous.protect_images != self.protect_images:
+                for artwork_image in self.images.all():
+                    generate_variants(artwork_image.image, protected=self.protect_images)
         super().save(*args, **kwargs)
 
 class Artist(models.Model):
@@ -134,3 +145,15 @@ class ArtworkImage(models.Model):
 
     class Meta:
         ordering = ["position", "id"]
+
+    def save(self, *args, **kwargs):
+        fields = kwargs.get("update_fields")
+        if self.image and (fields is None or "image" in fields):
+            if not self.image._committed:
+                # Use the actual storage key, including any replacement suffix.
+                self.image.save(self.image.name, self.image.file, save=False)
+                self._pending_variant_source = self.image.name
+            if getattr(self, "_pending_variant_source", None) == self.image.name:
+                generate_variants(self.image, protected=self.item.protect_images)
+                self._pending_variant_source = None
+        super().save(*args, **kwargs)

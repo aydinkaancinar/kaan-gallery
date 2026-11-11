@@ -190,6 +190,13 @@ class PublicDataTests(APITestCase):
             "id": image.pk,
             "image": reverse("artwork-image", kwargs={"image_id": image.pk}),
             "alt_text": "A ceramic vessel", "position": 0,
+            **{
+                f"{variant}_image": reverse(
+                    "artwork-image-variant",
+                    kwargs={"image_id": image.pk, "variant": variant},
+                )
+                for variant in ("card", "detail", "share")
+            },
         }
         self.assertEqual(response.data["images"], [expected])
         self.assertEqual(response.data["cover_image"], expected)

@@ -1,0 +1,9 @@
+STORAGE_TOKEN=replace-with-a-random-secret-at-least-32-characters-long
+CONTROL_TOKEN=replace-with-a-different-random-secret-at-least-32-characters-long
+ANALYTICS_TOKEN=replace-with-an-account-analytics-read-token
+# Optional HTTPS webhook for quota warnings and blocked-service notifications.
+ALERT_WEBHOOK_URL=
+
+# Optional Resend sending-only key restricted to notify.kaancinar.com.
+# Email takes priority over ALERT_WEBHOOK_URL when fully configured.
+RESEND_API_KEY=

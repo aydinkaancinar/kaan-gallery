@@ -9,13 +9,31 @@ class ArtistSerializer(serializers.ModelSerializer):
 
 class ArtworkImageSerializer(serializers.ModelSerializer):
     image = serializers.SerializerMethodField()
+    card_image = serializers.SerializerMethodField()
+    detail_image = serializers.SerializerMethodField()
+    share_image = serializers.SerializerMethodField()
 
     class Meta:
         model = ArtworkImage
-        fields = ["id", "image", "alt_text", "position"]
+        fields = ["id", "image", "card_image", "detail_image", "share_image", "alt_text", "position"]
 
     def get_image(self, obj):
+        if obj.item.protect_images:
+            return image_variant_url(obj.pk, "detail")
         return reverse("artwork-image", kwargs={"image_id": obj.pk})
+
+    def get_card_image(self, obj):
+        return image_variant_url(obj.pk, "card")
+
+    def get_detail_image(self, obj):
+        return image_variant_url(obj.pk, "detail")
+
+    def get_share_image(self, obj):
+        return image_variant_url(obj.pk, "share")
+
+
+def image_variant_url(image_id, variant):
+    return reverse("artwork-image-variant", kwargs={"image_id": image_id, "variant": variant})
 
 class ItemSerializer(serializers.ModelSerializer):
     category = serializers.SlugRelatedField(
@@ -39,6 +57,7 @@ class ItemSerializer(serializers.ModelSerializer):
             "creation_year",
             "creation_month",
             "display_order",
+            "protect_images",
             "artist_details",
             "images",
             "cover_image",

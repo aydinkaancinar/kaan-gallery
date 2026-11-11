@@ -1,6 +1,38 @@
+from contextlib import contextmanager
+
+from django.core.signals import request_finished
+from django.db import close_old_connections
+
 from ..models import Item
 from django_otp import DEVICE_ID_SESSION_KEY
 from django_otp.plugins.otp_totp.models import TOTPDevice
+
+FILESYSTEM_TEST_STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+
+def close_test_response(response):
+    """Release test-client files without closing TestCase's database transaction."""
+    if response.closed:
+        return
+    # Match Django's test client: real request cleanup must not close the
+    # connection that TestCase is holding inside its outer atomic block.
+    connected = request_finished.disconnect(close_old_connections)
+    try:
+        response.close()
+    finally:
+        if connected:
+            request_finished.connect(close_old_connections)
+
+
+@contextmanager
+def closing_response(response):
+    try:
+        yield response
+    finally:
+        close_test_response(response)
 
 
 def login_with_verified_session(client, user):
