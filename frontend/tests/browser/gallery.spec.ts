@@ -6,7 +6,7 @@ test("privacy policy is linked from the gallery and readable", async ({ page }) 
   await expect(page).toHaveURL("/privacy");
   await expect(page.getByRole("heading", { name: "Privacy policy" })).toBeVisible();
   await expect(page.getByText("Toronto, Ontario", { exact: false })).toBeVisible();
-  await expect(page.getByRole("link", { name: "akcinar99@gmail.com" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "akcinar99@gmail.com", exact: true })).toBeVisible();
 });
 
 test("filters survive artwork navigation, Back, Forward, and reload", async ({ page }) => {
