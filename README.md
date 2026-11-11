@@ -1,8 +1,8 @@
-# Kaan Gallery
+<h1 align="center">Personal Art Gallery</h1>
 
-[![Aydın Kaan Çınar — ceramics, objects, and illustrations](frontend/public/opengraph-image.png)](https://arts.kaancinar.com)
+[![Aydın Kaan Çınar — ceramics, objects, and illustrations](docs/readme-banner.png)](https://arts.kaancinar.com)
 
-**[Visit the live portfolio → arts.kaancinar.com](https://arts.kaancinar.com)**
+<p align="center">Visit the live portfolio →  <a href="https://arts.kaancinar.com"> arts.kaancinar.com</a></p>
 
 This is the online home for Aydın Kaan Çınar's ceramics, objects, and illustrations. It presents the artwork clearly, gives visitors a Clay Studio to explore pottery forms, and aims to run without recurring hosting charges while traffic stays within free-tier allowances. The [design decisions](docs/DESIGN_DECISIONS.md) explain the choices and their limits.
 
