@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function GalleryFooter() {
   return (
     <footer className="gallery-footer">
@@ -6,6 +8,7 @@ export default function GalleryFooter() {
         For permission to use an artwork,{" "}
         <a href="mailto:akcinar99@gmail.com">contact me</a>.
       </p>
+      <p><Link href="/privacy">Privacy policy</Link></p>
       <a
         href="https://kaancinar.com/"
         target="_blank"

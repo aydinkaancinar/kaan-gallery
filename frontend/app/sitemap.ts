@@ -12,6 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   return [
     { url: absolute("/") },
     { url: absolute("/clay-studio") },
+    { url: absolute("/privacy") },
     ...artworks.map(({ slug, images }) => ({
       url: absolute(`/artworks/${encodeURIComponent(slug)}`),
       images: images.map((path) => absolute(artworkImagePath(path))),
