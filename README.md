@@ -4,6 +4,10 @@ A personal gallery for the artwork of Aydın Kaan Çınar, developed step by ste
 
 **Status: public deployment, release hardening in progress.** Public visitors can read published artwork. API writes and draft previews require active, MFA-verified staff. Monitoring, backups/restore verification, bot protection, and broader browser checks remain.
 
+New work starts from `main` on a feature branch. Merge it into `main` before
+fast-forwarding either deployment branch. See the [branch and release
+workflow](docs/BRANCH_WORKFLOW.md).
+
 ## Current features
 
 - Artwork and artist management through Django admin and protected API endpoints.

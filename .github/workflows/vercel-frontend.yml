@@ -30,6 +30,11 @@ jobs:
     steps:
       - name: Check out the pushed commit
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a commit already on main
+        run: git merge-base --is-ancestor "$GITHUB_SHA" origin/main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
