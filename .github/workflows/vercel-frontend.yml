@@ -48,6 +48,7 @@ jobs:
 
       - name: Lint and run frontend tests
         run: |
+          npm run licenses:check
           npm run lint
           npm test
 
