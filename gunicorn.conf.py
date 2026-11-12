@@ -3,7 +3,7 @@ import os
 bind = f"0.0.0.0:{int(os.environ.get('PORT', '8000'))}"
 workers = 1
 worker_class = 'gthread'
-threads = 9
+threads = 4
 timeout = 60
 graceful_timeout = 30
 accesslog = '-'
