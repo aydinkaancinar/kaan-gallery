@@ -92,7 +92,7 @@ test("originals load after opening the viewer and keyboard navigation changes ph
     }
   });
   await page.goto("/artworks/browser-vase");
-  const photo = page.locator(".artwork-detail-image img");
+  const photo = page.locator('.artwork-photo-slide[data-current="true"] img');
   await expect(photo).toHaveJSProperty("complete", true);
   await expect(photo).toHaveJSProperty("naturalWidth", 1440);
   expect(originals).toHaveLength(0);
@@ -114,7 +114,7 @@ test("originals load after opening the viewer and keyboard navigation changes ph
 
 test("protected drawings use their limited preview in the viewer", async ({ page, request }) => {
   await page.goto("/artworks/browser-drawing");
-  const photo = page.locator(".artwork-detail-image img");
+  const photo = page.locator('.artwork-photo-slide[data-current="true"] img');
   await expect(photo).toHaveJSProperty("naturalWidth", 1200);
   const preview = await photo.getAttribute("src");
   expect(preview).toMatch(/\/detail$/);
@@ -124,4 +124,51 @@ test("protected drawings use their limited preview in the viewer", async ({ page
   await expect(viewer).toHaveJSProperty("naturalWidth", 1200);
   const original = preview!.replace(/\/detail$/, "");
   expect((await request.get(original)).status()).toBe(404);
+});
+
+test("swiping the artwork photo changes images on a phone", async ({ page, context, hasTouch }) => {
+  test.skip(!hasTouch, "Requires touch input");
+  await page.goto("/artworks/browser-vase");
+
+  const gallery = page.getByRole("region", { name: "Artwork images" });
+  const photo = gallery.getByRole("img");
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
+  const session = await context.newCDPSession(page);
+
+  async function swipe(surface: typeof gallery, horizontal: number) {
+    const track = surface.locator(".artwork-photo-track");
+    const bounds = (await track.boundingBox())!;
+    const centerX = Math.round(bounds.x + bounds.width / 2);
+    const centerY = Math.round(bounds.y + bounds.height / 2);
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ x: centerX, y: centerY }],
+    });
+    await session.send("Input.dispatchTouchEvent", {
+      type: "touchMove",
+      touchPoints: [{ x: centerX + horizontal, y: centerY }],
+    });
+    await expect(track).toHaveCSS(
+      "transform", `matrix(1, 0, 0, 1, ${horizontal}, 0)`,
+    );
+    await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+  }
+
+  await swipe(gallery, -100);
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 2");
+  await swipe(gallery, 100);
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
+  await swipe(gallery, -24);
+  await expect(page.locator(".artwork-photo-track")).toHaveCSS("transform", "none");
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
+  await gallery.getByRole("button", { name: "Next image" }).tap();
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 2");
+
+  await page.getByRole("button", { name: "View image" }).tap();
+  const viewer = page.getByRole("dialog", { name: "Full artwork image" });
+  await expect(viewer.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 2");
+  await swipe(viewer, 100);
+  await expect(viewer.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 1");
+  await viewer.getByRole("button", { name: "Close" }).tap();
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
 });

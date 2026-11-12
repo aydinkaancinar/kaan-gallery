@@ -149,7 +149,7 @@ export default async function Home({ searchParams }: HomeProps) {
   return (
     <div className="gallery-shell">
       <ThemeToggle />
-      <GalleryHeader />
+      <GalleryHeader currentPage="home" />
       <main className="gallery-main">
         <h1 className="visually-hidden">Art portfolio of Aydın Kaan Çınar</h1>
         <GalleryFilters
