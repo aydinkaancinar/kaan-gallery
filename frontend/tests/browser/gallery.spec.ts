@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 
 test("software license notices are accessible from the production footer", async ({ page }) => {
   await page.goto("/privacy");
@@ -13,9 +14,9 @@ test("software license notices are accessible from the production footer", async
   expect(response.status()).toBe(200);
   expect(response.headers()["content-type"]).toContain("text/plain");
   const served = await response.text();
-  expect(served).toBe(await readFile(new URL("../../public/THIRD_PARTY_LICENSES.txt", import.meta.url), "utf8"));
+  expect(served).toBe(await readFile(resolve(__dirname, "../../public/THIRD_PARTY_LICENSES.txt"), "utf8"));
   for (const path of ["react/LICENSE", "@swc/helpers/LICENSE"]) {
-    const upstream = await readFile(new URL(`../../node_modules/${path}`, import.meta.url), "utf8");
+    const upstream = await readFile(resolve(__dirname, `../../node_modules/${path}`), "utf8");
     expect(served).toContain(upstream.trim());
   }
   await expect(page).toHaveURL("/THIRD_PARTY_LICENSES.txt");
