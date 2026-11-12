@@ -37,52 +37,8 @@ function quotaStub(env) {
   return env.QUOTA.get(env.QUOTA.idFromName("account-r2-quota-v1"));
 }
 
-async function readCard(request, env, ctx, quota) {
-  const url = new URL(request.url);
-  let key;
-  try { key = objectKey(url.pathname); }
-  catch { return quota.fetch(request); }
-
-  if (!/^artwork-variants\/[^/]+\/[a-f0-9]{64}\/card\.webp$/.test(key)) {
-    return quota.fetch(request);
-  }
-  if (env.CARD_CACHE_ENABLED !== "true" || url.hostname !== env.CARD_CACHE_HOST) {
-    const upstream = await quota.fetch(request);
-    const response = new Response(upstream.body, upstream);
-    response.headers.set("X-Artwork-Cache", "BYPASS");
-    return response;
-  }
-
-  // HEAD checks the ledger and gateway state without an R2 operation.
-  const metadata = await quota.fetch(new Request(request.url, { method: "HEAD" }));
-  if (!metadata.ok) return metadata;
-
-  const generation = metadata.headers.get("ETag");
-  const cacheUrl = new URL(request.url);
-  cacheUrl.pathname = `/__card-cache/${encodeURIComponent(env.CARD_CACHE_VERSION || "v1")}/${encodeURIComponent(key)}/${encodeURIComponent(generation)}`;
-  cacheUrl.search = "";
-  const cacheKey = new Request(cacheUrl);
-  const cache = caches.default;
-  const hit = await cache.match(cacheKey).catch(() => undefined);
-  if (hit) {
-    const response = new Response(hit.body, { headers: metadata.headers });
-    response.headers.set("X-Artwork-Cache", "HIT");
-    return response;
-  }
-
-  const upstream = await quota.fetch(request);
-  const response = new Response(upstream.body, upstream);
-  if (response.ok && generation && response.headers.get("ETag") === generation) {
-    const copy = new Response(response.clone().body, response);
-    copy.headers.set("Cache-Control", "public, max-age=300");
-    ctx.waitUntil(cache.put(cacheKey, copy).catch(() => {}));
-  }
-  response.headers.set("X-Artwork-Cache", "MISS");
-  return response;
-}
-
 export default {
-  async fetch(request, env, ctx) {
+  async fetch(request, env) {
     const path = new URL(request.url).pathname;
     const control = path.startsWith("/v1/control/");
     if (!authorized(request, control ? env.CONTROL_TOKEN : env.STORAGE_TOKEN)) {
@@ -93,9 +49,7 @@ export default {
       return reply(503, { error: "Separate storage and control secrets are required." });
     }
     try {
-      const quota = quotaStub(env);
-      if (!control && request.method === "GET") return await readCard(request, env, ctx, quota);
-      return await quota.fetch(request);
+      return await quotaStub(env).fetch(request);
     } catch {
       return reply(503, { error: "Storage gateway unavailable." }, { "Retry-After": "900" });
     }
@@ -340,7 +294,6 @@ export class QuotaGate {
     if (entry.pending) return reply(503, { error: "Incomplete upload; cleanup required." });
     const headers = { "Content-Type": entry.contentType, "Content-Length": String(entry.size),
       "Last-Modified": entry.uploaded, "Cache-Control": "private, no-store",
-      ETag: `"${entry.generation ?? Date.parse(entry.uploaded)}"`,
       "X-Content-Type-Options": "nosniff" };
     // Metadata comes from the durable ledger, avoiding a billable R2 HEAD operation.
     if (request.method === "HEAD") return new Response(null, { headers });
@@ -372,7 +325,7 @@ export class QuotaGate {
     const contentType = ["image/jpeg", "image/png", "image/webp"].includes(suppliedType)
       ? suppliedType : "application/octet-stream";
     const reserved = { size: body.byteLength, chargedBytes, contentType,
-      uploaded: new Date().toUTCString(), generation: crypto.randomUUID(), pending: true };
+      uploaded: new Date().toUTCString(), pending: true };
     state.used.a += 1;
     state.used.bytes += chargedBytes;
     state.pendingObjects += 1;

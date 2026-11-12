@@ -232,20 +232,3 @@ The [backend Dockerfile](../Dockerfile#L17) starts Gunicorn with [gunicorn.conf.
 The experimental configuration uses one worker with nine threads so Gunicorn can service up to nine requests concurrently when the threads are free. The quota Durable Object can still serialize upstream reads. This experiment changes only the Gunicorn concurrency setting. Worker caching remains disabled.
 
 After deploying the backend, run the same five-run browser benchmark from the same network and compare first-image time, all-nine time, and the TTFB for the same card. If available, compare Django storage timing and Render memory and error rates. If the page shows little improvement or resource usage increases materially, restore four threads. Production results are pending.
-
-#### Production results with nine threads
-
-Five successful homepage runs after deployment, with Worker caching disabled. All times are milliseconds. The paired request was for Eclipse Vase in each run.
-
-| Run | First image decoded | All nine decoded | Card TTFB in batch / alone | Django publication in batch / alone | Django storage in batch / alone |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| 1 | 2796 | 5140 | 2177 / 697 | 25 / 44 | 1966 / 495 |
-| 2 | 4276 | 5234 | 4294 / 622 | 1199 / 25 | 2797 / 500 |
-| 3 | 3730 | 4946 | 4364 / 551 | 978 / 24 | 3293 / 467 |
-| 4 | 3477 | 5259 | 2956 / 439 | 275 / 19 | 2495 / 341 |
-| 5 | 2313 | 5483 | 1803 / 688 | 23 / 27 | 1571 / 590 |
-| **Mean** | **3318** | **5212** | **3119 / 599** | **500 / 28** | **2424 / 479** |
-
-The four-thread comparison averaged 2,106 ms to the first image and 4,705 ms for all nine. The nine-thread runs were slower by 1,212 ms and 507 ms respectively. These were separate production sessions, so the results show no improvement in this sample and cannot establish that the thread change caused the regression.
-
-The paired storage timings were higher in every batch. The storage timer covers the gateway round trip and full upstream read, so this identifies a substantial wait within Django's storage call. It does not isolate Durable Object queueing from R2 or network time. The isolated request ran second and could benefit from warm state.

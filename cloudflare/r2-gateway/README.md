@@ -290,26 +290,3 @@ and restart. This restores access to the retained local snapshot only. New or
 changed images uploaded after gateway activation must be copied back before a
 filesystem rollback; local media is not automatically synchronized from R2.
 The website currently live at kaancinar.com was not redeployed or changed.
-
-## Authenticated card cache experiment
-
-Wrangler declares `media.kaancinar.com` as a custom domain and keeps the
-existing `workers.dev` endpoint available. Before deploying, verify the
-hostname is available in the Worker's Cloudflare zone. Run `npm test` from
-this directory, then `npm run deploy` when ready to attach the domain.
-
-Caching is disabled by default. For a baseline on the new hostname, deploy
-with `CARD_CACHE_ENABLED=false`, point Render's `ARTWORK_GATEWAY_URL` at
-`https://media.kaancinar.com`, and run the gallery benchmark. Then set
-`CARD_CACHE_ENABLED=true` in Wrangler and redeploy the Worker. Repeat the
-benchmark with the same Gunicorn configuration. Inspect `X-Artwork-Cache`
-on authenticated gateway responses for `BYPASS`, `MISS`, and `HIT`.
-The browser-facing Django response does not forward this header.
-
-Only authenticated card GETs on the configured hostname use this cache.
-A ledger HEAD checks object existence and gateway state before cache lookup.
-Hits avoid R2 reads but still visit the shared quota object. The cached copy
-expires after five minutes, while the response to Django stays `no-store`.
-A replacement gets a new ledger generation even if it reuses the object
-key. To start with an empty cache, bump `CARD_CACHE_VERSION`. To bypass it,
-set `CARD_CACHE_ENABLED=false` and redeploy.
