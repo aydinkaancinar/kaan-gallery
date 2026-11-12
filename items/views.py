@@ -9,6 +9,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.decorators import permission_classes
 from django.http import FileResponse, HttpResponse, HttpResponseNotFound
 import mimetypes
+from time import perf_counter
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_safe
 from .permissions import IsAdminOrReadOnly, is_verified_staff
@@ -271,12 +272,14 @@ def artwork_image(request, image_id, variant=None):
     if variant is not None and variant not in VARIANT_TYPES:
         return HttpResponseNotFound()
 
+    lookup_started = perf_counter()
     images = ArtworkImage.objects.select_related("item")
 
     if not is_verified_staff(request.user):
         images = images.filter(item__status=Item.Status.PUBLISHED)
 
     artwork_image = images.filter(pk=image_id).first()
+    lookup_ms = (perf_counter() - lookup_started) * 1000
 
     if artwork_image is None or not artwork_image.image:
         return HttpResponseNotFound()
@@ -292,11 +295,17 @@ def artwork_image(request, image_id, variant=None):
             response = HttpResponse(content_type=VARIANT_TYPES.get(variant) or mimetypes.guess_type(path)[0])
             response["Content-Length"] = str(image.storage.size(path))
         else:
+            storage_started = perf_counter()
             file = image.storage.open(path, "rb")
+            storage_ms = (perf_counter() - storage_started) * 1000
             response = FileResponse(file, filename=path, content_type=VARIANT_TYPES.get(variant))
     except FileNotFoundError:
         return HttpResponseNotFound()
 
+    if request.method == "GET" and variant == "card":
+        response["Server-Timing"] = (
+            f"publication;dur={lookup_ms:.2f}, storage;dur={storage_ms:.2f}"
+        )
     response["X-Content-Type-Options"] = "nosniff"
     if variant is None:
         response["X-Robots-Tag"] = "noindex"

@@ -23,6 +23,8 @@ Next.js renders the public pages and asks Django for artwork data. Image URLs st
 
 Django stores artwork records and staff sessions in Neon. The Cloudflare Worker reserves R2 usage before reads and writes, checks account usage every 15 minutes, and can stop billable access at conservative limits. Its cutoff is an application safeguard, not a Cloudflare billing guarantee. See the [gateway design](docs/R2_QUOTA_GATEWAY.html).
 
+See the [image delivery investigation and benchmark](docs/IMAGE_DELIVERY.md) for the current request path, caching tradeoffs, and repeatable timing checks.
+
 GitHub Actions applies the keepalive configuration when it changes on `main`. cron-job.org runs the checks and emails the owner on failure, recovery, or automatic disablement. See the [keepalive design](docs/DESIGN_DECISIONS.md#render-keepalive).
 
 Gallery cards use small WebP variants, artwork pages use larger detail variants, and sharing links use 1200 × 630 previews. Clicking **View image** loads the original for unprotected work. For work with **Protect images** checked, all public copies are watermarked and the original remains staff-only. See [image behavior](frontend/README.md#image-delivery-and-search).
