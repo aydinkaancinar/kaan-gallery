@@ -37,9 +37,42 @@ body {
 
 .gallery-header {
   display: flex;
-  justify-content: center;
-  padding: 40px 0 36px;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 40px 0 0;
   border-bottom: 1px solid var(--border);
+}
+
+.gallery-navigation {
+  display: flex;
+  gap: 8px;
+  margin-bottom: -1px;
+}
+
+.gallery-navigation a {
+  display: grid;
+  place-items: center;
+  min-height: 44px;
+  padding: 0 18px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+.gallery-navigation a:hover,
+.gallery-navigation a[aria-current="page"] {
+  color: var(--accent);
+}
+
+.gallery-navigation a[aria-current="page"] {
+  border-bottom-color: var(--accent);
+}
+
+.gallery-navigation a:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -4px;
 }
 
 .gallery-identity {
@@ -82,7 +115,7 @@ body {
 
 @media (max-width: 600px) {
   .gallery-header {
-    padding: 28px 0;
+    padding: 28px 0 0;
   }
 
   .gallery-identity {
@@ -241,7 +274,15 @@ html[data-theme="dark"] .logo-dark {
 
 @media (prefers-reduced-motion: no-preference) {
   .artwork-card .artwork-image img {
-    transition: transform 350ms ease;
+    transition: opacity 280ms ease-out, transform 350ms ease;
+  }
+
+  .artwork-fade-image {
+    transition: opacity 280ms ease-out;
+  }
+
+  .artwork-fade-image[data-loading] {
+    opacity: 0;
   }
 
   .artwork-card-link:focus-visible .artwork-image img {
@@ -841,6 +882,23 @@ html[data-theme="dark"] .logo-dark {
 
 .artwork-detail-image.has-image {
   background: #bf1820;
+}
+
+.artwork-detail-image.is-swipeable,
+.artwork-viewer-image.is-swipeable {
+  touch-action: pan-y pinch-zoom;
+  overflow: hidden;
+}
+
+.artwork-photo-track,
+.artwork-photo-slide {
+  position: absolute;
+  inset: 0;
+}
+
+.artwork-photo-slide {
+  width: 100%;
+  right: auto;
 }
 
 .artwork-detail-image img {

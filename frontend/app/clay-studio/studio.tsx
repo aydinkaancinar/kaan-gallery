@@ -509,7 +509,7 @@ export default function ClayStudio({
   return (
     <div className="gallery-shell">
       <ThemeToggle />
-      <GalleryHeader backToGallery />
+      <GalleryHeader currentPage="clay-studio" />
       <main className="cs">
         <div className="cs-intro">
           <div>

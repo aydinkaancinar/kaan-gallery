@@ -1,16 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import { useState, type ReactNode } from "react";
+import ArtworkPhotoCarousel, { type GalleryImage } from "@/components/ArtworkPhotoCarousel";
 import ArtworkImageNavigation from "@/components/ArtworkImageNavigation";
 import ArtworkImageViewer from "@/components/ArtworkImageViewer";
-
-type GalleryImage = {
-  id: number;
-  src: string;
-  viewerSrc: string;
-  alt: string;
-};
 
 export default function ArtworkImageGallery({
   images,
@@ -21,8 +14,13 @@ export default function ArtworkImageGallery({
 }) {
   const [index, setIndex] = useState(0);
   const selected = images[index];
-  const previous = () => setIndex((current) => (current - 1 + images.length) % images.length);
-  const next = () => setIndex((current) => (current + 1) % images.length);
+
+  function navigate(direction: number) {
+    setIndex((current) => (current + direction + images.length) % images.length);
+  }
+
+  const previous = () => navigate(-1);
+  const next = () => navigate(1);
   const navigation = (
     <ArtworkImageNavigation
       index={index}
@@ -49,28 +47,21 @@ export default function ArtworkImageGallery({
           }
         }}
       >
-        <div className={`artwork-detail-image${selected ? " has-image" : ""}`}>
-          {selected ? (
-            <Image
-              src={selected.src}
-              alt={selected.alt}
-              fill
-              unoptimized
-              loading="eager"
-              fetchPriority="high"
-            />
-          ) : (
-            <span>Image unavailable</span>
-          )}
-        </div>
+        <ArtworkPhotoCarousel
+          images={images}
+          index={index}
+          onNavigate={navigate}
+          className={`artwork-detail-image${selected ? " has-image" : ""}`}
+        />
         {navigation}
       </section>
       <div className="artwork-detail-info">
         {children}
         {selected && (
           <ArtworkImageViewer
-            src={selected.viewerSrc}
-            alt={selected.alt}
+            images={images}
+            index={index}
+            onNavigate={navigate}
             navigation={navigation}
             onPrevious={images.length > 1 ? previous : undefined}
             onNext={images.length > 1 ? next : undefined}

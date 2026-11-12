@@ -1,4 +1,4 @@
-import Image from "next/image";
+import ArtworkThumbnail from "@/components/ArtworkThumbnail";
 import Link from "next/link";
 
 type ArtworkCardProps = {
@@ -24,15 +24,13 @@ export default function ArtworkCard({
 
   const content = (
     <>
-        <div className="artwork-image">
+      <div className="artwork-image">
         {imageUrl ? (
-          <Image
+          <ArtworkThumbnail
+            key={imageUrl}
             src={imageUrl}
             alt={imageAlt || title}
-            fill
-            unoptimized
-            loading={priority ? "eager" : "lazy"}
-            fetchPriority={priority ? "high" : undefined}
+            priority={priority}
           />
         ) : (
           <span className="visually-hidden">Image unavailable</span>

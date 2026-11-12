@@ -1,17 +1,19 @@
 "use client";
 
-import Image from "next/image";
+import ArtworkPhotoCarousel, { type GalleryImage } from "@/components/ArtworkPhotoCarousel";
 import { useRef, useState, type ReactNode } from "react";
 
 export default function ArtworkImageViewer({
-  src,
-  alt,
+  images,
+  index,
+  onNavigate,
   navigation,
   onPrevious,
   onNext,
 }: {
-  src: string;
-  alt: string;
+  images: GalleryImage[];
+  index: number;
+  onNavigate: (direction: number) => void;
   navigation?: ReactNode;
   onPrevious?: () => void;
   onNext?: () => void;
@@ -58,9 +60,15 @@ export default function ArtworkImageViewer({
         >
           Close <span aria-hidden="true">×</span>
         </button>
-        <div className="artwork-viewer-image">
-          {isOpen && <Image src={src} alt={alt} fill unoptimized loading="eager" />}
-        </div>
+        {isOpen && (
+          <ArtworkPhotoCarousel
+            images={images}
+            index={index}
+            onNavigate={onNavigate}
+            className="artwork-viewer-image"
+            fullSize
+          />
+        )}
         <div className="artwork-viewer-navigation">{navigation}</div>
       </dialog>
     </>
