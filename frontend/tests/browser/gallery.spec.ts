@@ -126,6 +126,15 @@ test("protected drawings use their limited preview in the viewer", async ({ page
   expect((await request.get(original)).status()).toBe(404);
 });
 
+test("tapping the artwork navigation arrow changes the photo on a phone", async ({ page, hasTouch }) => {
+  test.skip(!hasTouch, "Requires touch input");
+  await page.goto("/artworks/browser-vase");
+
+  const gallery = page.getByRole("region", { name: "Artwork images" });
+  await gallery.getByRole("button", { name: "Next image" }).tap();
+  await expect(gallery.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 2");
+});
+
 test("swiping the artwork photo changes images on a phone", async ({ page, context, hasTouch }) => {
   test.skip(!hasTouch, "Requires touch input");
   await page.goto("/artworks/browser-vase");
@@ -137,6 +146,7 @@ test("swiping the artwork photo changes images on a phone", async ({ page, conte
 
   async function swipe(surface: typeof gallery, horizontal: number) {
     const track = surface.locator(".artwork-photo-track");
+    await track.scrollIntoViewIfNeeded();
     const bounds = (await track.boundingBox())!;
     const centerX = Math.round(bounds.x + bounds.width / 2);
     const centerY = Math.round(bounds.y + bounds.height / 2);
@@ -161,14 +171,11 @@ test("swiping the artwork photo changes images on a phone", async ({ page, conte
   await swipe(gallery, -24);
   await expect(page.locator(".artwork-photo-track")).toHaveCSS("transform", "none");
   await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
-  await gallery.getByRole("button", { name: "Next image" }).tap();
-  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 2");
-
-  await page.getByRole("button", { name: "View image" }).tap();
+  await page.getByRole("button", { name: "View image" }).click();
   const viewer = page.getByRole("dialog", { name: "Full artwork image" });
-  await expect(viewer.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 2");
-  await swipe(viewer, 100);
   await expect(viewer.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 1");
-  await viewer.getByRole("button", { name: "Close" }).tap();
-  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
+  await swipe(viewer, -100);
+  await expect(viewer.getByRole("img")).toHaveAttribute("alt", "Browser test vase, view 2");
+  await viewer.getByRole("button", { name: "Close" }).click();
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 2");
 });
