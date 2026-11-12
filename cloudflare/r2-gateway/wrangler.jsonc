@@ -3,6 +3,8 @@
   "name": "kaan-gallery-r2-gateway",
   "account_id": "63321e3664c43ed42201ca96dc11be67",
   "main": "src/index.js",
+  "workers_dev": true,
+  "routes": [{ "pattern": "media.kaancinar.com", "custom_domain": true }],
   "compatibility_date": "2026-11-09",
   "compatibility_flags": ["nodejs_compat"],
   "r2_buckets": [
@@ -14,6 +16,9 @@
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["QuotaGate"] }],
   "triggers": { "crons": ["*/15 * * * *"] },
   "vars": {
+    "CARD_CACHE_ENABLED": "false",
+    "CARD_CACHE_HOST": "media.kaancinar.com",
+    "CARD_CACHE_VERSION": "v1",
     "ACCOUNT_ID": "63321e3664c43ed42201ca96dc11be67",
     "ALERT_EMAIL_FROM": "Kaan Gallery Alerts <alerts@notify.kaancinar.com>",
     "ALERT_EMAIL_TO": "akcinar99@gmail.com",

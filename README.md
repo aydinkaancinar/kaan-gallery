@@ -4,7 +4,7 @@
 
 <p align="center">Visit the live portfolio →  <a href="https://arts.kaancinar.com"> arts.kaancinar.com</a></p>
 
-This is the online home for Aydın Kaan Çınar's ceramics, objects, and illustrations. It presents the artwork clearly, gives visitors a Clay Studio to explore pottery forms, and aims to run without recurring hosting charges while traffic stays within free-tier allowances. The [design decisions](docs/DESIGN_DECISIONS.md) explain the choices and their limits.
+This is the online home for Aydın Kaan Çınar's ceramics, objects, and illustrations. Visitors can browse the artwork and explore pottery forms in Clay Studio. The live site runs at **$0 in recurring infrastructure costs**, with the custom domain paid for separately.
 
 ## What is here
 
@@ -29,7 +29,11 @@ GitHub Actions applies the keepalive configuration when it changes on `main`. cr
 
 Gallery cards use small WebP variants, artwork pages use larger detail variants, and sharing links use 1200 × 630 previews. Clicking **View image** loads the original for unprotected work. For work with **Protect images** checked, all public copies are watermarked and the original remains staff-only. See [image behavior](frontend/README.md#image-delivery-and-search).
 
-The current hosting plan uses Vercel Hobby for the frontend, Render Free for Django, Neon Free for PostgreSQL, and Cloudflare/Resend free allowances for image storage and quota alerts. This keeps recurring application-hosting charges at zero **only while usage and plan terms permit**. The domain has its own renewal cost; free services can sleep, stop at limits, or change terms. The [cost and tradeoff notes](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down) explain each choice.
+### Running the gallery at $0
+
+Keeping infrastructure costs at $0 shaped the architecture from the start. The frontend runs on Vercel Hobby, Django on Render Free, and PostgreSQL on Neon Free. Images live in Cloudflare R2, with a Worker that tracks storage usage, sends quota alerts through Resend, and blocks billable storage operations at configured thresholds. Scheduled health checks keep Render active, and pre-generated WebP variants reduce the bytes transferred when visitors browse the gallery.
+
+See the [hosting decisions and tradeoffs](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down).
 
 ### Where to look
 
