@@ -117,6 +117,19 @@ The [frontend workflow](.github/workflows/vercel-frontend.yml) runs tests and de
 
 For deeper context, read the [design decisions](docs/DESIGN_DECISIONS.md), [frontend guide](frontend/README.md), [security notes](docs/SECURITY_IMPLEMENTATION.md), [Render deployment record](docs/RENDER_DEPLOYMENT.md), and [Vercel deployment record](docs/VERCEL_FRONTEND_DEPLOYMENT.md). Deployment records include historical setup steps; current code and provider settings take precedence when they differ.
 
+## Copyright and permissions
+
+The original code, documentation, artwork, photographs, and branding are
+**all rights reserved** by Aydın Kaan Çınar. This is a source-visible portfolio,
+not an open-source license grant. Reuse requires prior written permission;
+see [LICENSE](LICENSE). Permission for the code does not automatically include
+the artwork or branding.
+
+Third-party dependencies retain their own licenses. The frontend publishes
+[software notices](frontend/public/THIRD_PARTY_LICENSES.txt), available through
+the site's **Software licenses** footer link. See the
+[frontend notice workflow](frontend/README.md#third-party-software-notices)
+when updating dependencies.
 
 ## Roadmap
 

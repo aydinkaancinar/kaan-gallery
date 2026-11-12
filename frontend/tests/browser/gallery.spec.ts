@@ -1,4 +1,25 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+
+test("software license notices are accessible from the production footer", async ({ page }) => {
+  await page.goto("/privacy");
+  const link = page.getByRole("link", { name: "Software licenses", exact: true });
+  await expect(link).toBeVisible();
+  const responsePromise = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/THIRD_PARTY_LICENSES.txt",
+  );
+  await link.click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/plain");
+  const served = await response.text();
+  expect(served).toBe(await readFile(new URL("../../public/THIRD_PARTY_LICENSES.txt", import.meta.url), "utf8"));
+  for (const path of ["react/LICENSE", "@swc/helpers/LICENSE"]) {
+    const upstream = await readFile(new URL(`../../node_modules/${path}`, import.meta.url), "utf8");
+    expect(served).toContain(upstream.trim());
+  }
+  await expect(page).toHaveURL("/THIRD_PARTY_LICENSES.txt");
+});
 
 test("privacy policy is linked from the gallery and readable", async ({ page }) => {
   await page.goto("/");

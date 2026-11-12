@@ -4,11 +4,14 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "prebuild": "npm run licenses:generate",
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "test": "node --test tests/*.test.mjs",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "licenses:generate": "node scripts/generate-license-notices.mjs",
+    "licenses:check": "node scripts/generate-license-notices.mjs --check"
   },
   "dependencies": {
     "next": "16.4.5",

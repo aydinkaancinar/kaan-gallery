@@ -142,6 +142,53 @@ Dependencies are locked in `package-lock.json`. Audit results are documented in
 the root README; do not apply forced dependency upgrades or unsupported major
 version overrides without review.
 
+### Third-party software notices
+
+The footer's **Software licenses** link serves
+`public/THIRD_PARTY_LICENSES.txt` at `/THIRD_PARTY_LICENSES.txt`. The `prebuild`
+script regenerates it from the installed upstream license files, so both
+local production builds and Vercel's npm build include the notices. CI checks
+that the committed copy matches the installed packages before building.
+
+```bash
+npm run licenses:generate
+npm run licenses:check
+```
+
+The inventory covers Next.js, React/React DOM, Scheduler, SWC helpers, the
+browser-facing components bundled inside Next, and its core-js legacy-browser
+polyfill. It conservatively includes both React Server Components transports
+and browser fallback helpers. Full upstream copyright and license texts are
+preserved. The core-js 3.38.1 notice is retained separately in `licenses/`
+because Next only includes the minified polyfill and its upstream license URL.
+These notices do not license the gallery's original code or visual assets;
+see the root [LICENSE](../LICENSE).
+
+When adding browser dependencies or updating Next.js, review the inventory in
+`scripts/generate-license-notices.mjs`, regenerate the notices, and commit both
+the dependency and notice changes. Next version and core-js version guards
+require that review on upgrades. To inspect browser dependencies with the
+installed Next.js CLI:
+
+```bash
+npx next analyze --output --snapshot licenses
+npx next analyze export --snapshot licenses > /tmp/kaan-gallery-license-graph.jsonl
+```
+
+Review `module` records referenced by `output` records whose filenames start
+with `[client-fs]`, plus the separately copied legacy polyfill. The notice
+generator is a reviewed inventory, not an automatic license scanner. Backend
+and development tools retain their own package licenses; redistribution of
+those packages or container images needs a separate review.
+
+The `software license notices` browser test follows the footer link from a
+production build and checks the served text against the generated file and
+the installed React/SWC licenses. Run it with:
+
+```bash
+npm run test:browser -- --grep "software license notices"
+```
+
 The frontend is live at [arts.kaancinar.com](https://arts.kaancinar.com). See
 [the Vercel deployment record](../docs/VERCEL_FRONTEND_DEPLOYMENT.md). Monitoring,
 backups, bot protection, and remaining security checks still need work.
