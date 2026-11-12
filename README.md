@@ -130,3 +130,47 @@ Third-party dependencies retain their own licenses. The frontend publishes
 the site's **Software licenses** footer link. See the
 [frontend notice workflow](frontend/README.md#third-party-software-notices)
 when updating dependencies.
+
+## Roadmap
+
+### Serve public artwork images from Cloudflare
+
+The gallery started as a Django backend, with publishing rules and image delivery in the same service. When Next.js was added, it reused that path. Today Django still checks publication and image protection, then buffers the image from Cloudflare and relays it through Vercel. The goal is to keep those publishing controls while letting the browser fetch public image variants directly from Cloudflare.
+
+```mermaid
+sequenceDiagram
+    participant Browser as Visitor browser
+    participant Next as Next.js
+    participant Django as Django API
+    participant Worker as Cloudflare Worker
+    participant R2 as Private R2 bucket
+    Browser->>Next: Open gallery
+    Next->>Django: Request artwork metadata
+    Django-->>Next: Published artwork and signed variant URLs
+    Next-->>Browser: Render gallery
+    Browser->>Worker: Fetch signed image URL
+    Worker->>Worker: Verify signature and current public variant
+    alt Edge cache hit
+        Worker-->>Browser: Serve cached image
+    else Edge cache miss
+        Worker->>Worker: Reserve R2 read in quota ledger
+        Worker->>R2: Read image
+        R2-->>Worker: Stream image
+        Worker-->>Browser: Stream image
+    end
+```
+
+- **Keep publishing rules in force.** Start with gallery cards. Django issues one-hour HMAC-signed URLs scoped to an immutable public variant. The Worker checks the signature, expiry, and current public variant mapping before serving cached bytes. Unpublishing, replacing an image, or enabling watermark protection must revoke the previous mapping. Keep staff previews, protected originals, and uploads on the authenticated path.
+- **Reduce latency and load.** Direct delivery removes the image relay through Render in Virginia and through Vercel. Edge cache hits can also avoid an R2 read. Offloading reduces Render bandwidth and Gunicorn work. The [750-hour monthly allowance](https://render.com/docs/free#free-instance-hours) is based on service uptime, so a continuously warm backend still uses the same instance hours.
+- **Reduce the impact of backend outages.** Already-issued URLs can keep working during a Render restart or Neon outage while they remain valid and Cloudflare can serve the image. Fresh gallery metadata and URL issuance still depend on Django and Neon.
+- **Measure the full gallery load.** Compare card time to first byte, time until cards appear, Render bandwidth, and R2 reads across warm and cold edge caches. Test revocation with previously issued URLs and apply rate limits on the public Worker route. See the [image delivery benchmark](docs/IMAGE_DELIVERY.md) and [Cloudflare cache behavior](https://developers.cloudflare.com/workers/runtime-apis/cache/).
+
+### Benchmark Rust for the image gateway
+
+Prototype a Rust/WebAssembly implementation and compare it with the JavaScript Worker on signature verification, cache hits, and R2 reads. Measure Worker CPU time, end-to-end latency, and bundle size. Keep the quota and authorization behavior covered by the same tests, and use the results to decide whether to migrate.
+
+### Trace requests with OpenTelemetry
+
+Instrument Next.js, Django, and the Worker to see where time goes across metadata requests, database calls, image delivery, and cache misses. Send sampled traces to Grafana Cloud Free. Use route templates and timing data, and exclude raw URLs, query strings, signed image URLs, credentials, cookies, and request bodies from exported telemetry.
+
+Before enabling export, verify the data fields and retention in the configured Grafana stack. Update the privacy policy to explain what operational data is collected, why it is used, who processes it, and how long it is kept. [Grafana Cloud Free currently lists 14 days of trace retention.](https://grafana.com/products/cloud/traces/)
