@@ -32,6 +32,67 @@ Gallery cards use small WebP variants, artwork pages use larger detail variants,
 
 **Zero recurring application-hosting cost was a design constraint.** The gallery combines Vercel Hobby, Render Free, Neon Free, and Cloudflare/Resend free allowances. A custom R2 gateway reserves usage before storage operations, enforces quota cutoffs, and sends alerts. Scheduled keepalive checks keep the backend warm, while WebP card and detail variants reduce image transfer sizes. These choices support the live gallery at zero recurring application-hosting cost at current usage. The [cost and tradeoff notes](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down) cover provider limits and the separate domain renewal cost.
 
+### Gallery database relationships
+
+```mermaid
+erDiagram
+    direction LR
+
+    tasks_category {
+        bigint id PK
+        varchar name UK
+        varchar slug UK
+        integer position
+    }
+    tasks_artist {
+        bigint id PK
+        varchar name
+        varchar surname
+    }
+    tasks_item {
+        bigint id PK
+        varchar name
+        varchar slug UK
+        varchar category FK "references category.slug"
+        bigint artist_id FK "nullable"
+        varchar description
+        numeric price
+        integer quantity
+        varchar status
+        timestamptz created
+        smallint creation_year "nullable"
+        smallint creation_month "nullable"
+        integer display_order "nullable"
+        boolean protect_images
+    }
+    tasks_artworkimage {
+        bigint id PK
+        bigint item_id FK
+        varchar image "storage key"
+        varchar alt_text
+        integer position
+    }
+    tasks_item_tags {
+        bigint id PK
+        bigint item_id FK
+        bigint tag_id FK
+    }
+    tasks_tag {
+        bigint id PK
+        varchar name UK
+    }
+
+    tasks_category ||..o{ tasks_item : groups
+    tasks_artist |o..o{ tasks_item : creates
+    tasks_item ||..o{ tasks_artworkimage : contains
+    tasks_item ||..o{ tasks_item_tags : has
+    tasks_item_tags }o..|| tasks_tag : references
+```
+
+The join table enforces uniqueness on `(item_id, tag_id)`. Django protects categories in use, clears artist references when an artist is deleted, and deletes an artwork's image records when the artwork is deleted.
+
+Artwork is represented by `Item` in the [Django models](items/models.py). PostgreSQL stores image references, alt text, and display order. Production image files live in private Cloudflare R2.
+
 ### Where to look
 
 | If you are changing… | Start here |
