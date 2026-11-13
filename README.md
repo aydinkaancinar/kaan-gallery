@@ -242,3 +242,27 @@ Prototype a Rust/WebAssembly implementation and compare it with the JavaScript W
 Instrument Next.js, Django, and the Worker to see where time goes across metadata requests, database calls, image delivery, and cache misses. Send sampled traces to Grafana Cloud Free. Use route templates and timing data, and exclude raw URLs, query strings, signed image URLs, credentials, cookies, and request bodies from exported telemetry.
 
 Before enabling export, verify the data fields and retention in the configured Grafana stack. Update the privacy policy to explain what operational data is collected, why it is used, who processes it, and how long it is kept. [Grafana Cloud Free currently lists 14 days of trace retention.](https://grafana.com/products/cloud/traces/)
+
+### Test zero-cost backups and recovery
+
+Use a separate private R2 bucket for encrypted Neon PostgreSQL dumps and
+versioned artwork backups. Organize it under `database/`, `artwork/`, and
+`manifests/` prefixes, with dated database snapshots and a manifest of object
+keys and checksums. Copy new or changed originals and retain the versions
+needed by each retained database snapshot. Coordinate backups with artwork
+edits so every referenced original is recoverable.
+
+Measure combined production and backup storage, backup operations, and
+restore usage against the account-wide free allowances and gateway cutoffs.
+Choose a backup schedule and retention policy from those measurements, and
+test lifecycle rules that expire old snapshots while preserving images still
+referenced by retained backups. Keep a periodic copy on an existing local
+drive to provide recovery if access to the Cloudflare account is lost.
+
+Test restoring into an isolated PostgreSQL database and storage environment,
+including rebuilding the gateway's object ledger and regenerating image
+variants. Verify artwork records, image checksums, publishing rules, and admin
+access through the restored gallery. Record how much recent work could be
+lost and how long recovery takes. Also test
+[Neon's short-term point-in-time recovery](https://neon.com/blog/practical-guide-to-database-branching)
+for recent database mistakes.
