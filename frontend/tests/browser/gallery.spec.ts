@@ -45,7 +45,7 @@ test("filters survive artwork navigation, Back, Forward, and reload", async ({ p
   await expect(page.getByRole("article")).toHaveCount(1);
   await page.goForward();
   await expect(page.getByRole("heading", { level: 1 })).toContainText("Browser test drawing");
-  await page.getByRole("link", { name: /Back to artworks/ }).click();
+  await page.goBack();
   await expect(page).toHaveURL("/?category=print");
 
   const search = page.getByRole("searchbox", { name: "Search artworks" });
@@ -68,7 +68,7 @@ test("an explicit theme survives navigation and reload", async ({ page }) => {
     await route.continue();
   });
   await page.goto("/", { waitUntil: "commit" });
-  const dark = page.getByRole("button", { name: "Dark theme" });
+  const dark = page.getByRole("switch", { name: "Dark theme" });
   try {
     await expect(dark).toBeVisible();
     await expect(dark).toBeDisabled();
@@ -80,7 +80,7 @@ test("an explicit theme survives navigation and reload", async ({ page }) => {
   await page.getByRole("link", { name: /Browser test vase/ }).click();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await page.reload();
-  await expect(page.getByRole("button", { name: "Dark theme" })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("switch", { name: "Dark theme" })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 });
 
@@ -144,7 +144,7 @@ test("swiping the artwork photo changes images on a phone", async ({ page, conte
   await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
   const session = await context.newCDPSession(page);
 
-  async function swipe(surface: typeof gallery, horizontal: number) {
+  async function swipe(surface: typeof gallery, horizontal: number, vertical = 0) {
     const track = surface.locator(".artwork-photo-track");
     await track.scrollIntoViewIfNeeded();
     const bounds = (await track.boundingBox())!;
@@ -156,15 +156,19 @@ test("swiping the artwork photo changes images on a phone", async ({ page, conte
     });
     await session.send("Input.dispatchTouchEvent", {
       type: "touchMove",
-      touchPoints: [{ x: centerX + horizontal, y: centerY }],
+      touchPoints: [{ x: centerX + horizontal, y: centerY + vertical }],
     });
-    await expect(track).toHaveCSS(
-      "transform", `matrix(1, 0, 0, 1, ${horizontal}, 0)`,
-    );
+    const transform = Math.abs(horizontal) > Math.abs(vertical)
+      ? `matrix(1, 0, 0, 1, ${horizontal}, 0)`
+      : "none";
+    await expect(track).toHaveCSS("transform", transform);
     await session.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
   }
 
-  await swipe(gallery, -100);
+  await swipe(gallery, -15, -100);
+  await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");
+
+  await swipe(gallery, -100, 35);
   await expect(photo).toHaveAttribute("alt", "Browser test vase, view 2");
   await swipe(gallery, 100);
   await expect(photo).toHaveAttribute("alt", "Browser test vase, view 1");

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import GalleryHeader from "@/components/GalleryHeader";
@@ -34,7 +33,6 @@ type ArtworkDetail = {
 
 type ArtworkPageProps = {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ from?: string | string[] }>;
 };
 
 async function getArtwork(slug: string): Promise<ArtworkDetail> {
@@ -104,17 +102,8 @@ export async function generateMetadata({
 
 export default async function ArtworkPage({
   params,
-  searchParams,
 }: ArtworkPageProps) {
   const { slug } = await params;
-  const query = await searchParams;
-
-  const returnTo =
-    typeof query.from === "string" &&
-    (query.from === "/" || query.from.startsWith("/?"))
-      ? query.from
-      : "/";
-
   const artwork = await getArtwork(slug);
 
   const completionDate =
@@ -159,14 +148,6 @@ export default async function ArtworkPage({
           dateCreated: completionDate,
           creator: artist ? { "@type": "Person", name: `${artist.name} ${artist.surname}`.trim() } : undefined,
         }} />
-        <Link
-          className="artwork-back"
-          href={returnTo}
-          prefetch={false}
-        >
-          ← Back to artworks
-        </Link>
-
         <ArtworkImageGallery key={slug} images={images}>
             <div className="artwork-eyebrow">Artwork</div>
             <h1>
