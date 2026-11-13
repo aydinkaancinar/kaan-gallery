@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect, useRef, type PointerEvent } from "react";
+import { useLayoutEffect, useRef, type TouchEvent as ReactTouchEvent } from "react";
 import { flushSync } from "react-dom";
 import ArtworkThumbnail from "@/components/ArtworkThumbnail";
 
@@ -24,10 +24,11 @@ export default function ArtworkPhotoCarousel({
   className: string;
   fullSize?: boolean;
 }) {
+  const surface = useRef<HTMLDivElement>(null);
   const track = useRef<HTMLDivElement>(null);
   const animation = useRef<Animation | null>(null);
   const swipe = useRef<{
-    pointerId: number;
+    identifier: number;
     x: number;
     y: number;
     time: number;
@@ -61,24 +62,38 @@ export default function ArtworkPhotoCarousel({
     if (direction !== 0) onNavigate(direction);
   }
 
-  function moveSwipe(event: PointerEvent<HTMLDivElement>) {
-    const gesture = swipe.current;
-    if (gesture?.pointerId !== event.pointerId || !track.current) return;
-    const x = event.clientX - gesture.x;
-    const y = event.clientY - gesture.y;
-    if (!gesture.axis && Math.max(Math.abs(x), Math.abs(y)) >= 8) {
-      gesture.axis = Math.abs(x) > Math.abs(y) ? "horizontal" : "vertical";
+  useLayoutEffect(() => {
+    const element = surface.current;
+    if (!canSwipe || !element) return;
+
+    function moveSwipe(event: TouchEvent) {
+      const gesture = swipe.current;
+      const touch = event.touches[0];
+      if (!gesture || touch?.identifier !== gesture.identifier || !track.current) return;
+      const x = touch.clientX - gesture.x;
+      const y = touch.clientY - gesture.y;
+
+      if (!gesture.axis && Math.max(Math.abs(x), Math.abs(y)) >= 6) {
+        gesture.axis = Math.abs(x) > Math.abs(y) ? "horizontal" : "vertical";
+      }
+      if (gesture.axis !== "horizontal" || !event.cancelable) return;
+
+      // Claim the gesture before the browser starts scrolling on diagonal drags.
+      event.preventDefault();
+      gesture.offset = Math.max(-gesture.width, Math.min(gesture.width, x));
+      track.current.style.transform = `translateX(${gesture.offset}px)`;
     }
-    if (gesture.axis !== "horizontal") return;
 
-    gesture.offset = Math.max(-gesture.width, Math.min(gesture.width, x));
-    track.current.style.transform = `translateX(${gesture.offset}px)`;
-  }
+    element.addEventListener("touchmove", moveSwipe, { passive: false });
+    return () => element.removeEventListener("touchmove", moveSwipe);
+  }, [canSwipe]);
 
-  function finishSwipe(event: PointerEvent<HTMLDivElement>, cancelled = false) {
+  function finishSwipe(event: ReactTouchEvent<HTMLDivElement>, cancelled = false) {
     const gesture = swipe.current;
     const strip = track.current;
-    if (gesture?.pointerId !== event.pointerId || !strip) return;
+    if (!gesture || !strip || !Array.from(event.changedTouches).some(
+      (touch) => touch.identifier === gesture.identifier,
+    )) return;
     swipe.current = null;
     if (gesture.offset === 0) return;
 
@@ -109,28 +124,26 @@ export default function ArtworkPhotoCarousel({
   return (
     <div
       className={`${className}${canSwipe ? " is-swipeable" : ""}`}
-      onPointerDown={(event) => {
-        if (!canSwipe || event.pointerType !== "touch") return;
-        if (!event.isPrimary) {
-          if (swipe.current && track.current) {
-            swipe.current = null;
-            track.current.style.removeProperty("transform");
-          }
+      ref={surface}
+      onTouchStart={(event) => {
+        if (!canSwipe) return;
+        if (event.touches.length !== 1) {
+          if (swipe.current) resetTrack();
           return;
         }
         if (animation.current) return;
+        const touch = event.touches[0];
         swipe.current = {
-          pointerId: event.pointerId,
-          x: event.clientX,
-          y: event.clientY,
+          identifier: touch.identifier,
+          x: touch.clientX,
+          y: touch.clientY,
           time: event.timeStamp,
           width: event.currentTarget.clientWidth,
           offset: 0,
         };
       }}
-      onPointerMove={moveSwipe}
-      onPointerCancel={(event) => finishSwipe(event, true)}
-      onPointerUp={(event) => finishSwipe(event)}
+      onTouchCancel={(event) => finishSwipe(event, true)}
+      onTouchEnd={(event) => finishSwipe(event)}
     >
       {selected ? (
         <div className="artwork-photo-track" ref={track}>

@@ -138,14 +138,6 @@ export default async function Home({ searchParams }: HomeProps) {
 
   const artworkPage: ArtworkPage = await response.json();
 
-  const galleryParams = new URLSearchParams(filters);
-
-  if (page > 1) {
-    galleryParams.set("page", String(page));
-  }
-
-  const galleryQuery = galleryParams.toString();
-  const returnTo = galleryQuery ? `/?${galleryQuery}` : "/";
   return (
     <div className="gallery-shell">
       <ThemeToggle />
@@ -194,8 +186,6 @@ export default async function Home({ searchParams }: HomeProps) {
                   ).padStart(2, "0")}`
                 : undefined;
             const detailPath = `/artworks/${encodeURIComponent(artwork.slug)}`;
-            const detailHref = returnTo === "/" ? detailPath
-              : `${detailPath}?${new URLSearchParams({ from: returnTo })}`;
             return (
               <ArtworkCard
                 key={artwork.id}
@@ -208,7 +198,7 @@ export default async function Home({ searchParams }: HomeProps) {
                 }
                 imageAlt={artwork.cover_image?.alt_text}
                 priority={index === 0}
-                href={detailHref}
+                href={detailPath}
               />
             );
           })}
