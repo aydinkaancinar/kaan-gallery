@@ -85,16 +85,47 @@ From the repository root:
 ./.venv/bin/python manage.py test items.tests.test_storage_gateway
 ```
 
+## GitHub Actions deployment
+
+The [gateway workflow](../../.github/workflows/cloudflare-gateway.yml) runs on
+pull requests targeting `main` and pushes to `main` that change `cloudflare/**`
+or the workflow file. It installs the locked dependencies with Node.js 24,
+runs the gateway tests, and validates the Worker bundle with a Wrangler dry run.
+After those checks pass on `main`, it deploys the triggering commit with
+`npm run deploy`.
+
+Add a repository Actions secret named **`CLOUDFLARE_API_TOKEN`** before merging
+the first deployment. Create it with Cloudflare's **Edit Cloudflare Workers**
+template, scoped to the account that owns this Worker. Include access to its
+R2 binding and scheduled triggers when configuring the token. Wrangler reads
+the account ID and Worker bindings from `wrangler.jsonc`.
+[Cloudflare GitHub Actions authentication](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/)
+
+In GitHub, open **Settings → Secrets and variables → Actions → New repository
+secret** to save the token. Existing Worker runtime secrets are managed in
+Cloudflare and retained by Wrangler deployments.
+[Wrangler configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)
+
+For a retry, choose **Actions → Test and deploy Cloudflare gateway → Run
+workflow → main**. Runs on other branches execute validation only. Deployments
+are serialized, and an older run skips deployment if newer Cloudflare or
+workflow changes have reached `main`. Unrelated changes to `main` allow the
+tested gateway revision to deploy.
+
+This workflow updates the existing Worker, bindings, configuration, and Cron
+trigger. First-time bucket initialization follows the deployment sequence
+below. Verify the deployed version in Cloudflare and check gateway status and
+gallery image delivery after a release.
+
 ## Deployment sequence
 
 1. Confirm R2 public development access is disabled and there are no bucket
    custom domains. Keep the bucket empty until initialization succeeds.
 2. Keep other R2 writers disabled for this bucket. Django will use this
    gateway instead of an S3 client. Use the Worker binding for R2 access.
-3. Verify `ACCOUNT_ID` and the conservative accounting start in
-   `BILLING_ANCHOR_UTC`. Keep `BILLING_RESET_CONFIRMED=false` while the reset
-   hour is unknown; see the conservative-hold section below. Automatic
-   rollover requires a verified exact boundary and a matching persisted anchor.
+3. Verify `ACCOUNT_ID` and `BILLING_ANCHOR_UTC`. This gallery uses the 10th
+   at 00:00 UTC with `BILLING_RESET_CONFIRMED=true` to enable monthly rollover.
+   See the monthly-reset section below for the chosen boundary and existing-ledger behavior.
 4. Generate two independent random secrets of at least 32 characters and store
    them securely. For example, run `python -c "import secrets; print(secrets.token_urlsafe(48))"`
    separately for each secret. Install Worker secrets using the CLI prompts:
@@ -182,26 +213,35 @@ alert ID is also sent as an idempotency key; Resend's deduplication window is
 finite, so delayed retries may still produce duplicates. Verify inbox delivery
 before relying on notifications. No real email was sent by automated tests.
 
-## Unconfirmed renewal hour: conservative hold
+## Automatic monthly reset
 
-Workers Free and an R2 renewal date of December 10 were confirmed by the owner.
-The dashboard does not expose the hour. Current configuration therefore uses
-`2026-11-10T00:00:00.000Z` as an initial accounting lower bound (before this new
-account and bucket existed), with `BILLING_RESET_CONFIRMED=false`. This is not
-an assertion that billing resets at midnight.
+The repository enables automatic rollover with
+`BILLING_ANCHOR_UTC=2026-11-10T00:00:00.000Z` and
+`BILLING_RESET_CONFIRMED=true`. The configured period starts on the **10th of
+every month at 00:00 UTC**, beginning with the December 10, 2026 rollover.
 
-At December 10 00:00 UTC, billable gateway access stops with
-`billing_review_required`. All counters, snapshots, objects and pending alerts
-remain intact, and one review alert is queued. Manual unlock does not bypass
-this hold. Authorized deletes remain available. This deliberately favors
-quota protection over availability, even if substantial allowance remains.
+Cloudflare documents that billing dates use UTC. Midnight is the owner's
+chosen operating assumption for the known renewal date. It has not been
+independently verified as this account's exact reset timestamp. An earlier
+gateway reset could count some operations in a different period from the
+provider. [Cloudflare billing FAQ](https://developers.cloudflare.com/billing/understand/faq/)
 
-There is no automatic recovery from this hold in the unconfirmed mode. Verify
-the actual allowance boundary before enabling automatic rollover; if its hour
-differs from the persisted anchor, a separately reviewed state migration is
-required. Changing the anchor directly is rejected. Do not delete the ledger
-to reset usage. Reconciliation continues to use the retained accounting window;
-if Cloudflare rejects that older window, the gateway also remains blocked.
+At rollover, the gateway resets Class A and Class B operation counters and
+clears the previous analytics snapshot. Stored bytes, pending uploads,
+manual locks, and undelivered alerts carry forward. Requests wait for a
+successful analytics reconciliation, normally at the next scheduled
+15-minute check. An authenticated `POST /v1/control/reconcile` can also refresh
+analytics. Failed reconciliation keeps requests blocked until it succeeds.
+
+The persisted anchor stays the same, so enabling this setting needs no ledger
+migration. Deploy the Worker configuration to apply it. If an earlier deployment
+has already entered `billing_review_required`, enabling automatic rollover
+clears that hold when the stored period advances, followed by reconciliation.
+Manual unlock alone does not clear a billing-review hold.
+
+Setting `BILLING_RESET_CONFIRMED=false` retains the optional manual-review
+behavior for deployments that need it. Changing the persisted anchor requires
+a migration that preserves accounting history.
 
 ## First deployment
 
