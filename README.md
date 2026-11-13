@@ -119,11 +119,14 @@ For deeper context, read the [design decisions](docs/DESIGN_DECISIONS.md), [fron
 
 ## Copyright and permissions
 
-The original code, documentation, artwork, photographs, and branding are
-**all rights reserved** by Aydın Kaan Çınar. This is a source-visible portfolio,
-not an open-source license grant. Reuse requires prior written permission;
-see [LICENSE](LICENSE). Permission for the code does not automatically include
-the artwork or branding.
+The original source code and associated software documentation are licensed
+under the [MIT License](LICENSE). Artwork, photographs, illustrations, logos,
+branding, and other original visual assets are excluded from the MIT License
+and remain © 2026 Aydın Kaan Çınar, all rights reserved.
+
+Pull requests are welcome and require my approval before merging. If you build
+something with the code, I'd appreciate a link back to
+[Kaan Gallery](https://github.com/aydinkaancinar/kaan-gallery).
 
 Third-party dependencies retain their own licenses. The frontend publishes
 [software notices](frontend/public/THIRD_PARTY_LICENSES.txt), available through
