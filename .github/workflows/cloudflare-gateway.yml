@@ -1,0 +1,68 @@
+name: Test and deploy Cloudflare gateway
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - cloudflare/**
+      - .github/workflows/cloudflare-gateway.yml
+  push:
+    branches:
+      - main
+    paths:
+      - cloudflare/**
+      - .github/workflows/cloudflare-gateway.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-gateway-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: cloudflare/r2-gateway
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - name: Check out the triggering commit
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: cloudflare/r2-gateway/package-lock.json
+
+      - name: Install gateway dependencies
+        run: npm ci
+
+      - name: Run gateway tests
+        run: npm test
+
+      - name: Validate the Worker bundle
+        run: npm run deploy -- --dry-run --outdir "${{ runner.temp }}/cloudflare-gateway-build"
+
+      - name: Deploy the tested main commit
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          git fetch origin main
+          if ! git -C ../.. diff --quiet "$GITHUB_SHA" FETCH_HEAD -- cloudflare/ .github/workflows/cloudflare-gateway.yml; then
+            echo 'Newer Cloudflare changes exist on main; skipping this older deployment.'
+            exit 0
+          fi
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo 'Missing repository secret CLOUDFLARE_API_TOKEN' >&2
+            exit 1
+          fi
+          npm run deploy

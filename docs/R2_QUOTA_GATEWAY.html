@@ -36,7 +36,7 @@
 <tr><td>Class B · reads</td><td>9,000,000 / billing period</td><td>9,500,000 / billing period</td></tr>
 <tr><td>Stored data</td><td>9 GB</td><td>9.5 GB</td></tr>
 </tbody></table>
-<p class="note">GB uses decimal bytes. Each object reserves an extra 8 KiB for metadata. Files are limited to 10 MiB. The current date-only setup stops conservatively at December 10, 00:00 UTC. This is not a confirmed reset hour; automatic quota resets are disabled.</p>
+<p class="note">GB uses decimal bytes. Each object reserves an extra 8 KiB for metadata. Files are limited to 10 MiB. Automatic operation-quota resets use the 10th of each month at 00:00 UTC. Midnight is the chosen operating assumption for the known billing date. See the <a href="../cloudflare/r2-gateway/README.md#automatic-monthly-reset">monthly-reset runbook</a>.</p>
 </section>
 <div class="grid">
 <section class="card" aria-labelledby="requests">
@@ -54,7 +54,7 @@
 <li>Every 15 minutes, a scheduled check reconciles <strong>account-wide</strong> R2 analytics and retries pending alerts.</li>
 <li>Failed analytics, snapshots older than 30 minutes, exhausted budgets or a manual lock stop billable access. Authorized deletes remain available.</li>
 <li>Resend email or an optional HTTPS webhook receives durable warning events. Failed deliveries retry; stable IDs help reduce duplicates.</li>
-<li>With the renewal hour unconfirmed, billing rollover retains all counters and stops billable access for review. A review alert is queued; manual unlock cannot bypass the hold.</li>
+<li>Monthly rollover resets operation counters and the analytics snapshot. Stored bytes, pending uploads, manual locks and undelivered alerts carry forward. Requests resume after successful analytics reconciliation.</li>
 </ul>
 </section>
 </div>

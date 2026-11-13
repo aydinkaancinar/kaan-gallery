@@ -18,7 +18,7 @@
     "ALERT_EMAIL_FROM": "Kaan Gallery Alerts <alerts@notify.kaancinar.com>",
     "ALERT_EMAIL_TO": "akcinar99@gmail.com",
     "BILLING_ANCHOR_UTC": "2026-11-10T00:00:00.000Z",
-    "BILLING_RESET_CONFIRMED": "false",
+    "BILLING_RESET_CONFIRMED": "true",
     "CLASS_A_LIMIT": "950000",
     "CLASS_B_LIMIT": "9500000",
     "STORAGE_LIMIT_BYTES": "9500000000",

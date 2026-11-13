@@ -21,7 +21,15 @@ For authenticated caching, validate the storage token and current object ledger 
 
 The Render image endpoint already accepts anonymous requests for published cards. Vercel's bot protection covers its own entry point. A public Worker route would move traffic to Cloudflare, where requests still consume Worker capacity even when cache hits save R2 reads. Keep the R2 bucket and the existing storage token private.
 
-For direct delivery, have the Worker verify the current public variant mapping before serving cached bytes. Revoke or update that mapping as part of unpublishing artwork, deleting artwork or an image, or changing image protection. Test previously issued URLs after each change. Cache purge can remove obsolete bytes, while the mapping check prevents a stale cache hit from granting access. [Cloudflare documents the data center scope of Worker cache deletion and the available global purge mechanisms.](https://developers.cloudflare.com/workers/reference/how-the-cache-works/)
+## Proposed direct delivery
+
+This is planned work. The [roadmap diagram](../README.md#serve-public-artwork-images-from-cloudflare) shows the proposed request path, starting with public gallery cards.
+
+- **Signed URLs and access checks.** Django would issue one-hour HMAC-signed URLs scoped to an immutable public variant. Before serving either cached or freshly fetched bytes, the Worker would verify the signature, expiry, and current public variant mapping. Staff previews, protected originals, and uploads would keep their authenticated path.
+- **Revocation.** Unpublishing or deleting artwork, deleting or replacing an image, or changing image protection must revoke or update the previous public variant mapping. Test previously issued URLs after each change. Cache purge can remove obsolete bytes, while the mapping check prevents stale cached content from granting access. [Cloudflare cache deletion and purge behavior](https://developers.cloudflare.com/workers/reference/how-the-cache-works/)
+- **Latency and resource use.** Direct delivery would remove the image relay through Render in Virginia and through Vercel. Edge cache hits could also avoid an R2 read. Offloading would reduce Render bandwidth and Gunicorn work. Render's free instance-hour allowance measures service uptime, so keeping the backend warm would still consume the same instance hours. [Render Free instance hours](https://render.com/docs/free#free-instance-hours)
+- **Backend outages.** Already-issued URLs could keep working during a Render restart or Neon outage while valid and while Cloudflare can verify access and serve the image. Fresh gallery metadata and URL issuance would still depend on Django and Neon.
+- **Verification.** Compare card time to first byte, time until cards appear, Render bandwidth, and R2 reads across warm and cold edge caches. Test revocation with previously issued URLs, retain quota reservations on cache misses, and apply rate limits to the public Worker route. Use the benchmarks below to compare results.
 
 ## Repeatable benchmark
 

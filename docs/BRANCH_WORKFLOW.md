@@ -48,3 +48,20 @@ use **Run workflow** in GitHub Actions if a redeploy is needed.
 For a rollback, make a revert commit on a feature branch, merge that branch
 into `main`, and fast-forward the affected deployment branch. This preserves
 history and keeps the release branch related to `main`.
+
+## Cloudflare gateway releases
+
+Changes under `cloudflare/**`, or to
+`.github/workflows/cloudflare-gateway.yml`, trigger gateway tests and a
+Wrangler dry run on pull requests targeting `main`. A push to `main` with
+those changes runs the checks and deploys the Worker automatically.
+
+Configure the repository's `CLOUDFLARE_API_TOKEN` Actions secret as described
+in the [gateway guide](../cloudflare/r2-gateway/README.md#github-actions-deployment).
+For a retry, run **Test and deploy Cloudflare gateway** manually on `main`.
+An older workflow run skips deployment if newer Cloudflare or workflow changes
+have reached `main`. Unrelated changes to `main` allow deployment to proceed.
+
+For a Worker rollback, revert the relevant change on a feature branch and
+merge the pull request into `main`. The gateway workflow validates and deploys
+that revision. Verify gateway status and image delivery after deployment.

@@ -1,6 +1,6 @@
 # Design decisions
 
-Kaan Gallery is built to give Aydın Kaan Çınar's artwork a clear, searchable home and let visitors experiment with pottery forms in Clay Studio. The site has no checkout or public accounts. The infrastructure aims for **no recurring hosting charge at current usage**, while keeping artwork originals and editing access private.
+Kaan Gallery is built to give Aydın Kaan Çınar's artwork a clear, searchable home and let visitors experiment with pottery forms in Clay Studio. The site has no checkout or public accounts. The infrastructure runs with **zero recurring application-hosting charges at current usage**, with artwork originals and editing access kept private.
 
 ## Why the system is split up
 
@@ -16,6 +16,8 @@ The [runtime diagram](../README.md#how-it-works) shows the request path. [Small 
 
 ## Keeping hosting costs down
 
+Zero recurring application-hosting cost shaped the architecture. The R2 gateway reserves storage usage before operations and enforces quota cutoffs with alerts. Scheduled keepalive checks keep Render warm, and generated WebP card and detail variants reduce image transfer sizes. These controls make the provider allowances practical for the gallery's current usage.
+
 | Layer | Current approach | Limit to watch |
 | --- | --- | --- |
 | Frontend | [Vercel Hobby](https://vercel.com/docs/plans/hobby) | Free usage limits and the personal/non-commercial terms; confirm this portfolio's intended use qualifies. |
@@ -24,7 +26,7 @@ The [runtime diagram](../README.md#how-it-works) shows the request path. [Small 
 | Images and gateway | [R2 Standard free allowance](https://developers.cloudflare.com/r2/pricing/), [Workers Free](https://developers.cloudflare.com/workers/platform/pricing/), [SQLite Durable Objects](https://developers.cloudflare.com/durable-objects/platform/pricing/) | Storage, read/write operations, Worker requests and Durable Object usage have separate limits. |
 | Quota email | [Resend Free](https://resend.com/pricing) | Alert delivery remains inside its email allowance. |
 
-The custom domain has a separate renewal cost. These service tiers can change, and exceeding a provider allowance may stop service or create charges. The [R2 quota Worker](R2_QUOTA_GATEWAY.html) warns at 90% and blocks gallery storage calls before configured safety margins, but direct provider activity and delayed usage reports mean it cannot guarantee a zero bill. Until the exact R2 renewal hour is confirmed, its current configuration deliberately holds billable access at the December 10 boundary for review. The zero-cost goal is a budget constraint, not a promise of uninterrupted service.
+The custom domain has a separate renewal cost. These service tiers can change, and exceeding a provider allowance may stop service or create charges. The [R2 quota Worker](R2_QUOTA_GATEWAY.html) warns at 90% and blocks gallery storage calls before configured safety margins, but direct provider activity and delayed usage reports mean it cannot guarantee a zero bill. The [gateway runbook](../cloudflare/r2-gateway/README.md#automatic-monthly-reset) records the configured monthly reset and reconciliation behavior. Availability depends on the provider allowances and the gateway's quota controls.
 
 ## Render keepalive
 
@@ -54,11 +56,13 @@ Published artwork is public. Draft metadata and images, private originals for pr
 
 Every change starts on `feature/*` or `fix/*` from the latest `main` and reaches `main` through a reviewed pull request. `main` holds the complete project. The Vercel and Render deployment branches move forward from `main` only when that side is ready to release, so one side can stay on an older reviewed commit. [GitHub Actions](../.github/workflows/) tests the selected deployment commit before asking its host to deploy. Database migrations remain a separate release step. See the [deployment diagram](../README.md#how-changes-reach-the-site) and [branch commands](BRANCH_WORKFLOW.md).
 
+The [Cloudflare gateway workflow](../.github/workflows/cloudflare-gateway.yml) tests and builds gateway changes on pull requests, then deploys them directly from `main`. Its deployment credential is a GitHub Actions secret, and its runtime credentials stay in Cloudflare. The [gateway guide](../cloudflare/r2-gateway/README.md#github-actions-deployment) describes setup and release verification.
+
 ## Decisions still under review
 
 - Protect direct requests to the Render origin, and measure page speed with the Free backend's cold starts.
 - Verify backups by restoring them; expand monitoring and run broader browser/device checks.
-- Confirm Vercel Hobby suitability and account data preferences, review live cookies/provider settings, and settle retention practices before treating the privacy review as complete.
+- Complete the [operations and provider review](SECURITY_IMPLEMENTATION.md#operations-and-provider-review), including retention practices and live provider settings.
 - Refine Clay Studio's provisional clay-weight adjustment when more real measurements are available.
 
 Update this page when a deployment, data flow or cost assumption changes.

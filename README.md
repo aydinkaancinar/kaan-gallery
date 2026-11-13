@@ -4,14 +4,15 @@
 
 <p align="center">Visit the live portfolio →  <a href="https://arts.kaancinar.com"> arts.kaancinar.com</a></p>
 
-This is the online home for Aydın Kaan Çınar's ceramics, objects, and illustrations. It presents the artwork clearly, gives visitors a Clay Studio to explore pottery forms, and aims to run without recurring hosting charges while traffic stays within free-tier allowances. The [design decisions](docs/DESIGN_DECISIONS.md) explain the choices and their limits.
+This is the online home for Aydın Kaan Çınar's ceramics, objects, and illustrations. It presents the artwork clearly, gives visitors a Clay Studio to explore pottery forms, and runs with zero recurring application-hosting charges at current usage. The [design decisions](docs/DESIGN_DECISIONS.md) explain the choices and their limits.
 
 ## What is here
 
 - **Gallery:** responsive artwork pages, categories, search, date filters, pagination, image viewer, and light/dark themes.
 - **Clay Studio:** shape a vessel, estimate clay weight, undo and redo changes, save a design in the browser, or share it in a URL. The weight adjustment is provisional; see the [model notes](docs/CLAY_STUDIO.md).
-- **Owner-only editing:** Django admin and API write routes are intended for Aydın Kaan Çınar alone. Sign-in requires a password, authenticator-app MFA, and an active session.
+- **Owner-only editing.** Gallery owners manage artwork through Django admin with a password and authenticator-app MFA. API writes also require an active, MFA-verified staff session.
 - **Sharing and discovery:** artwork-specific previews and metadata, a sitemap, robots rules, and structured data.
+- **Zero-cost hosting.** The live gallery runs with zero recurring application-hosting charges at current usage, supported by storage quota controls, backend keepalive checks, and optimized image variants. See the [hosting design](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down).
 
 Visitors do not create accounts, check out, or upload artwork. [Clay Studio](https://arts.kaancinar.com/clay-studio) and the [privacy policy](https://arts.kaancinar.com/privacy) are also live.
 
@@ -29,7 +30,7 @@ GitHub Actions applies the keepalive configuration when it changes on `main`. cr
 
 Gallery cards use small WebP variants, artwork pages use larger detail variants, and sharing links use 1200 × 630 previews. Clicking **View image** loads the original for unprotected work. For work with **Protect images** checked, all public copies are watermarked and the original remains staff-only. See [image behavior](frontend/README.md#image-delivery-and-search).
 
-The current hosting plan uses Vercel Hobby for the frontend, Render Free for Django, Neon Free for PostgreSQL, and Cloudflare/Resend free allowances for image storage and quota alerts. This keeps recurring application-hosting charges at zero **only while usage and plan terms permit**. The domain has its own renewal cost; free services can sleep, stop at limits, or change terms. The [cost and tradeoff notes](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down) explain each choice.
+**Zero recurring application-hosting cost was a design constraint.** The gallery combines Vercel Hobby, Render Free, Neon Free, and Cloudflare/Resend free allowances. A custom R2 gateway reserves usage before storage operations, enforces quota cutoffs, and sends alerts. Scheduled keepalive checks keep the backend warm, while WebP card and detail variants reduce image transfer sizes. These choices support the live gallery at zero recurring application-hosting cost at current usage. The [cost and tradeoff notes](docs/DESIGN_DECISIONS.md#keeping-hosting-costs-down) cover provider limits and the separate domain renewal cost.
 
 ### Where to look
 
@@ -46,18 +47,53 @@ The current hosting plan uses Vercel Hobby for the frontend, Render Free for Dja
 
 The Django app lives in `items/`, but its database app label is `tasks` for migration compatibility. Use that label if an app-specific migration command needs one.
 
-## Run it locally
+## Run your own gallery
 
-For a fresh, empty gallery, use Python 3.12 and Node.js 24. The default Django settings use local SQLite; private credentials are not needed for this path.
+Fork this repository to build a gallery for your own work. A fresh clone starts with an empty artwork database and stores uploads locally in `media/`. The default setup uses SQLite.
+
+### Prerequisites
+
+Install or have these available before running the setup commands.
+
+| Dependency | Used for |
+| --- | --- |
+| Git and a GitHub account | Forking and cloning the repository |
+| Python 3.12 with `pip`, `venv`, and SQLite support | Running Django and the local database |
+| Node.js 24 with npm | Installing and running the Next.js frontend |
+| A web browser | Viewing the gallery and managing artwork |
+| An authenticator app supporting TOTP | Enrolling in MFA and signing in to Django admin |
+
+Check the command-line tools in your terminal.
 
 ```bash
+git --version
+python3.12 --version
+python3.12 -m pip --version
+python3.12 -c "import venv, sqlite3"
+node --version
+npm --version
+```
+
+The setup below installs Django, Pillow, and the other Python packages from
+`requirements-lock.txt`, then Next.js, React, and the frontend packages with
+`npm ci`. SQLite and local media storage cover the default development setup.
+The [Docker and cloud-connected workflow](docs/LOCAL_DOCKER.md) has its own setup guide.
+
+### Start locally
+
+Fork the repository on GitHub, then clone your fork (replace `YOUR_USERNAME` below). These commands use a macOS/Linux shell.
+
+```bash
+git clone https://github.com/YOUR_USERNAME/kaan-gallery.git
+cd kaan-gallery
 python3.12 -m venv .venv
 ./.venv/bin/python -m pip install -r requirements-lock.txt
 ./.venv/bin/python manage.py migrate
+./.venv/bin/python manage.py createsuperuser
 ./.venv/bin/python manage.py runserver
 ```
 
-In another terminal:
+In another terminal, from your cloned repository:
 
 ```bash
 cd frontend
@@ -65,9 +101,42 @@ npm ci
 npm run dev
 ```
 
-Open [localhost:3000](http://localhost:3000). `BACKEND_ORIGIN` defaults to `http://127.0.0.1:8000`; `SITE_URL` controls canonical and sharing URLs. A fresh database has no artwork until you add it in Django admin and publish it. Admin setup begins at [the MFA login](http://127.0.0.1:8000/account/login/).
+Open [localhost:3000](http://localhost:3000). The gallery will be empty until you publish your first piece. `BACKEND_ORIGIN` defaults to `http://127.0.0.1:8000`.
 
-On the project workstation, [Docker Compose](docs/LOCAL_DOCKER.md) is the usual local backend: it uses a private, ignored `.env.docker` file and connects to Neon and the R2 gateway. The [Neon setup guide](docs/NEON_SETUP.md) explains the alternative virtual-environment connection. **Check which database and storage settings are active before changing real artwork.** Never commit `.env.*`, database dumps, MFA recovery codes, or original media.
+### Add your first piece
+
+1. Sign in with your new superuser at [the MFA login](http://127.0.0.1:8000/account/login/), then open [two-factor setup](http://127.0.0.1:8000/account/two_factor/setup/). Scan the QR code with your authenticator app and enter its code to finish enrollment.
+2. Open [Django admin](http://127.0.0.1:8000/admin/). Under **Items**, choose **Add**. Enter a name, price (use `0` if appropriate), description, and category. The initial categories are created by migrations; you can manage them under **Categories**.
+3. In **Artwork images**, upload your own JPEG, PNG, or WebP and add descriptive alt text. Each image must be at most 10 MiB and 25 million pixels. Card, detail, and sharing variants are generated automatically.
+4. Set **Status** to **Published**, save, and refresh the gallery. Use **Draft** while preparing a piece. Lower **Gallery position** values appear first.
+
+### Make it yours
+
+Update these files with your own identity and assets before publishing your gallery.
+
+| What to customize | Where to edit |
+| --- | --- |
+| Site name, description, and sharing metadata | [`frontend/lib/site.ts`](frontend/lib/site.ts) |
+| Header name, logo references, and accessible label | [`frontend/components/GalleryHeader.tsx`](frontend/components/GalleryHeader.tsx) |
+| Website, email, and Instagram links | [`frontend/components/ThemeToggle.tsx`](frontend/components/ThemeToggle.tsx) |
+| Footer identity and website link | [`frontend/components/GalleryFooter.tsx`](frontend/components/GalleryFooter.tsx) |
+| Home-page heading and artwork-page titles/descriptions | [`frontend/app/page.tsx`](frontend/app/page.tsx), [`frontend/app/artworks/[slug]/page.tsx`](frontend/app/artworks/[slug]/page.tsx) |
+| Logo images, favicon, and sharing preview | [`frontend/public/images/`](frontend/public/images/), [`frontend/app/icon.svg`](frontend/app/icon.svg), [`frontend/public/opengraph-image.png`](frontend/public/opengraph-image.png) |
+| Watermark text for protected artwork | The `watermark()` function in [`items/image_variants.py`](items/image_variants.py); change it before uploading protected images |
+| Privacy policy and contact details | [`frontend/app/privacy/page.tsx`](frontend/app/privacy/page.tsx), adjusted to your own hosting and data practices |
+
+For local development, create `frontend/.env.local` with `SITE_URL=http://localhost:3000`. This controls canonical and sharing URLs and the Clay Studio watermark. When deploying, set `SITE_URL` to your gallery's public URL and `BACKEND_ORIGIN` to your backend URL in your frontend host's environment settings.
+
+Replace the README banner and personal project description in your fork too. Use your own artwork and branding as described in [Copyright and permissions](#copyright-and-permissions). Keep the MIT copyright and license notices with the code.
+
+For deployment, see [How changes reach the site](#how-changes-reach-the-site) and the linked hosting guides. The live gallery's deployment workflows need your own provider configuration and secrets.
+
+<details>
+<summary>Existing project workstation and cloud-connected development</summary>
+
+On the project workstation, [Docker Compose](docs/LOCAL_DOCKER.md) is the usual local backend. It uses a private, ignored `.env.docker` file and connects to Neon and the R2 gateway. The [Neon setup guide](docs/NEON_SETUP.md) explains the alternative virtual-environment connection. Existing environment settings or a private `.artwork-storage.json` file can also select cloud storage. Check which database and storage settings are active before changing real artwork. Keep credentials, database dumps, MFA recovery codes, and original media out of Git.
+
+</details>
 
 ## Check a change
 
@@ -108,14 +177,13 @@ flowchart TD
 
 The [frontend workflow](.github/workflows/vercel-frontend.yml) runs tests and deploys Vercel when frontend files change on its deployment branch. The [backend workflow](.github/workflows/render-backend.yml) tests and builds the Docker image before asking Render to deploy its commit. A workflow accepting a deploy is not proof that the live release is healthy; check the hosting dashboard and site. Database migrations are a separate release step, using a reviewed direct Neon connection. Secrets belong in the providers' private settings, not in Git or frontend `NEXT_PUBLIC_*` variables.
 
-## Current operating notes
+The [Cloudflare gateway workflow](.github/workflows/cloudflare-gateway.yml) tests and builds changes under `cloudflare/` on pull requests, then deploys them automatically when they reach `main`. See the [gateway setup](cloudflare/r2-gateway/README.md#github-actions-deployment) for the required GitHub secret and manual retries.
 
-- The frontend runs on Vercel Hobby at `arts.kaancinar.com`; the Docker backend runs on Render Free in Virginia and may be slow to wake after idle time. The root `kaancinar.com` website is a separate site.
-- Neon holds the production PostgreSQL database. Original artwork and variants live in a private Cloudflare R2 bucket behind the Worker. The Worker uses a conservative billing hold because the exact R2 renewal hour has not been verified; review the [gateway runbook](cloudflare/r2-gateway/README.md) before the December 10 boundary.
-- Vercel Bot Protection and an image-request rate rule are enabled. Direct requests to the Render origin still need a stronger ingress plan. Backups, a restore test, broader monitoring, and a wider real-device/browser pass remain release work.
-- A [privacy policy](frontend/app/privacy/page.tsx) is live. Owner-only login does not prevent automated login attempts or provider request logging. The current review still needs a retention routine for security records and expired sessions, a live cookie/provider-settings check, and an assessment of Vercel Hobby terms and data preferences. Keep policy claims aligned with verified behavior.
+## Operations and maintenance
 
-For deeper context, read the [design decisions](docs/DESIGN_DECISIONS.md), [frontend guide](frontend/README.md), [security notes](docs/SECURITY_IMPLEMENTATION.md), [Render deployment record](docs/RENDER_DEPLOYMENT.md), and [Vercel deployment record](docs/VERCEL_FRONTEND_DEPLOYMENT.md). Deployment records include historical setup steps; current code and provider settings take precedence when they differ.
+The live gallery uses Vercel, Render, Neon, and a private Cloudflare R2 gateway. Operational follow-up is tracked in the [security and provider review checklist](docs/SECURITY_IMPLEMENTATION.md#operations-and-provider-review) and the [gateway monthly-reset runbook](cloudflare/r2-gateway/README.md#automatic-monthly-reset).
+
+For setup and troubleshooting, see the [design decisions](docs/DESIGN_DECISIONS.md), [frontend guide](frontend/README.md), [Render deployment record](docs/RENDER_DEPLOYMENT.md), and [Vercel deployment record](docs/VERCEL_FRONTEND_DEPLOYMENT.md). Deployment records include historical setup steps. Check the current code and provider settings when using them.
 
 ## Copyright and permissions
 
@@ -138,7 +206,7 @@ when updating dependencies.
 
 ### Serve public artwork images from Cloudflare
 
-The gallery started as a Django backend, with publishing rules and image delivery in the same service. When Next.js was added, it reused that path. Today Django still checks publication and image protection, then buffers the image from Cloudflare and relays it through Vercel. The goal is to keep those publishing controls while letting the browser fetch public image variants directly from Cloudflare.
+Let browsers fetch public artwork variants directly from Cloudflare while preserving Django's publishing and image-protection rules. The proposed path removes the image relay through Render and Vercel, with the goal of reducing load times and backend bandwidth.
 
 ```mermaid
 sequenceDiagram
@@ -163,10 +231,7 @@ sequenceDiagram
     end
 ```
 
-- **Keep publishing rules in force.** Start with gallery cards. Django issues one-hour HMAC-signed URLs scoped to an immutable public variant. The Worker checks the signature, expiry, and current public variant mapping before serving cached bytes. Unpublishing, replacing an image, or enabling watermark protection must revoke the previous mapping. Keep staff previews, protected originals, and uploads on the authenticated path.
-- **Reduce latency and load.** Direct delivery removes the image relay through Render in Virginia and through Vercel. Edge cache hits can also avoid an R2 read. Offloading reduces Render bandwidth and Gunicorn work. The [750-hour monthly allowance](https://render.com/docs/free#free-instance-hours) is based on service uptime, so a continuously warm backend still uses the same instance hours.
-- **Reduce the impact of backend outages.** Already-issued URLs can keep working during a Render restart or Neon outage while they remain valid and Cloudflare can serve the image. Fresh gallery metadata and URL issuance still depend on Django and Neon.
-- **Measure the full gallery load.** Compare card time to first byte, time until cards appear, Render bandwidth, and R2 reads across warm and cold edge caches. Test revocation with previously issued URLs and apply rate limits on the public Worker route. See the [image delivery benchmark](docs/IMAGE_DELIVERY.md) and [Cloudflare cache behavior](https://developers.cloudflare.com/workers/runtime-apis/cache/).
+Start with gallery cards and compare time to first image, full-gallery load time, and storage reads. The [direct-delivery design](docs/IMAGE_DELIVERY.md#proposed-direct-delivery) covers signed URLs, cache access checks, revocation, and outage behavior.
 
 ### Benchmark Rust for the image gateway
 

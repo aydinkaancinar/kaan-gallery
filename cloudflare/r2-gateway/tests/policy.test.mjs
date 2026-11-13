@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import { billingPeriod, parseAnalytics, quotaPolicy } from "../src/policy.js";
 import { QuotaGate } from "../src/index.js";
 
@@ -84,4 +85,45 @@ test("unconfirmed rollover keeps counters and cannot be manually unlocked", asyn
   assert.equal((await response.json()).blocked, "billing_review_required");
   await gate.loadState();
   assert.equal(Object.values(stored.alerts).filter(a => a.kind === "billing_review_required").length, 1);
+});
+
+test("deployed configuration rolls over on the tenth at UTC midnight across year end", async (t) => {
+  const { vars } = JSON.parse(readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
+  assert.equal(vars.BILLING_RESET_CONFIRMED, "true");
+  assert.equal(vars.BILLING_ANCHOR_UTC, "2026-11-10T00:00:00.000Z");
+  t.mock.timers.enable({ apis: ["Date"], now: new Date("2026-12-09T23:59:59.999Z") });
+  let stored = {
+    anchor: vars.BILLING_ANCHOR_UTC,
+    initialized: true,
+    period: billingPeriod(vars.BILLING_ANCHOR_UTC),
+    used: { a: 10, b: 20, bytes: 123 },
+    pendingObjects: 1,
+    manualLock: false,
+    alerts: {},
+    checkedAt: Date.now(),
+    snapshot: null,
+  };
+  const gate = new QuotaGate({ storage: {
+    get: async () => structuredClone(stored),
+    put: async (_key, value) => { stored = structuredClone(value); },
+  } }, vars);
+
+  assert.deepEqual((await gate.loadState()).used, { a: 10, b: 20, bytes: 123 });
+  for (const boundary of ["2026-12-10T00:00:00.000Z", "2027-01-10T00:00:00.000Z"]) {
+    t.mock.timers.setTime(Date.parse(boundary));
+    const state = await gate.loadState();
+    assert.equal(state.period.start, boundary);
+    assert.deepEqual(state.used, { a: 0, b: 0, bytes: 123 });
+    assert.equal(state.pendingObjects, 1);
+    assert.equal(state.billingReviewRequired, false);
+    assert.equal(gate.blockedReason(state, quotaPolicy(vars)), "analytics_unavailable");
+
+    // Represent successful reconciliation and new usage within the new period.
+    stored.checkedAt = Date.now();
+    stored.used.a = 3;
+    stored.used.b = 4;
+    const reloaded = await gate.loadState();
+    assert.deepEqual(reloaded.used, { a: 3, b: 4, bytes: 123 });
+    assert.equal(gate.blockedReason(reloaded, quotaPolicy(vars)), null);
+  }
 });

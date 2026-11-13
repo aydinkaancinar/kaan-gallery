@@ -233,3 +233,16 @@ categories while retaining category slugs in API representations and filters.
 Clay Studio shared-design input is validated and compressed input decoding has
 an output-size limit. Interactive browser QA and production security work remain
 outstanding; these checks do not establish production readiness.
+
+## Operations and provider review
+
+This checklist carries the operational follow-up recorded in the README as of November 13, 2026. Review the live configuration and record evidence as items are completed.
+
+- [ ] Strengthen ingress controls for direct requests to the Render origin. Vercel Bot Protection and the image-request rate rule cover the frontend entry point. See the [Vercel firewall record](VERCEL_FRONTEND_DEPLOYMENT.md#vercel-firewall).
+- [ ] Verify production backups with a restore exercise, expand monitoring, and complete a wider browser and real-device pass.
+- [ ] Establish a retention and cleanup routine for security records and expired sessions.
+- [ ] Review live cookies and provider logging/settings, including Vercel account data preferences.
+- [ ] Confirm the deployed gallery's use meets Vercel Hobby terms.
+- [ ] Keep the [privacy policy](../frontend/app/privacy/page.tsx) aligned with verified collection, retention, and provider behavior.
+
+Review the [gateway monthly-reset procedure](../cloudflare/r2-gateway/README.md#automatic-monthly-reset) when changing billing configuration. The gateway runbook records the UTC midnight assumption and reconciliation needed after rollover.
